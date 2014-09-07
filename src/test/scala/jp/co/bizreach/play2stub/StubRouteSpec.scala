@@ -21,10 +21,10 @@ class StubRouteSpec extends FunSpec with Matchers {
     def parseRule(line: String) = {
       val parser = new RouteFileParser
       val result = parser.parse(line)
-      def describeResult[T](result: parser.ParseResult[T]) = result match {
-        case parser.NoSuccess(msg, _) => msg
-        case _ => "successful"
-      }
+//      def describeResult[T](result: parser.ParseResult[T]) = result match {
+//        case parser.NoSuccess(msg, _) => msg
+//        case _ => "successful"
+//      }
       //result.successful aka describeResult(result) === true
       assert(result.get.size === 1)
       result.get.head

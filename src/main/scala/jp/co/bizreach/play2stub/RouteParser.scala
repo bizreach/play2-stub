@@ -366,12 +366,17 @@ object RoutesCompiler {
 
   val parser = new RouteFileParser
 
-  def parse(text: String): Option[Rule] = parser.parse(text) match {
-    case parser.Success(parsed:List[Rule], _) if parsed.size == 1 =>
-      Some(parsed(0))
-    case _ =>
-      logger.info("No stub routes has been parsed")
-      None
+  def parse(text: String): Either[String, Rule] = {
+    val result = parser.parse(text)
+    println(result)
+    result match {
+      case parser.Success(parsed:List[Rule], _) if parsed.size == 1 =>
+        Right(parsed(0))
+      case err:parser.Error =>
+        Left(err.toString())
+      case _ =>
+        Left("No stub routes has been parsed")
+    }
   }
 
 

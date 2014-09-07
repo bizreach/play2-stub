@@ -1,14 +1,13 @@
 package jp.co.bizreach.play2stub
 
-import java.io.File
-
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import jp.co.bizreach.play2stub.RoutesCompiler.Route
+import com.typesafe.config.ConfigException
+import jp.co.bizreach.play2stub.RoutesCompiler.{Comment, Include, Route}
 import org.apache.commons.io.{FilenameUtils, FileUtils}
 import play.api.Play._
-import play.api.http.Status
 import play.api.mvc.{Result, RequestHeader}
 import play.api.{Configuration, Logger, Application, Plugin}
+
 
 /**
  * Created by scova0731 on 8/31/14.
@@ -19,34 +18,62 @@ class StubPlugin(app: Application) extends Plugin {
   private val confBasePath = "play2stub"
 
   trait RouteHolder {
-    // route information from apolication.conf
-    def routes:Seq[StubRoute] = Seq.empty
+    // route information from application.conf
+    val routes:Seq[StubRoute] = Seq.empty
     val dataPath = app.configuration.getString(confBasePath + ".data-root").getOrElse("/app/data")
 
   }
 
   lazy val holder = new RouteHolder {
 
-    //   Load common
-    val routeConfig = current.configuration.getConfig(confBasePath + ".routes").get
-    routeConfig.subKeys.map { path =>
-      //   Load routes
-      val route = RoutesCompiler.parse(path) match {
-        case Some(r:Route) => r
-        case _ => throw new NoSuchElementException
-      }
-      val template = routeConfig.getConfig(path + ".template")
-      val data = routeConfig.getString(path + ".data")
-      val params = routeConfig.getConfig(path + ".params")
-      val headers = routeConfig.getConfig(path + ".headers")
-      val status = routeConfig.getInt(path + ".status")
-
-      //   Load filters
-
-    }
-
-
+    // TODO  Load filters
+    override val routes = current.configuration.getConfig(confBasePath + ".routes").map { routes =>
+      routes.subKeys.flatMap { path =>
+        println(s"path: $path")
+        routes.getConfig(path).map { inner =>
+          println(s"inner: $inner")
+          StubRoute(
+            route = parseRoute(path.replace("~", ":")),
+            template = toTemplate(inner),
+            data = inner.getString("data"),
+            status = inner.getInt("status"),
+            headers = toMap(inner.getConfig("headers")),
+            params = toMap(inner.getConfig("params"))
+          )
+        }
+      }.toSeq
+    }.getOrElse(Seq.empty)
   }
+
+
+  private def parseRoute(path: String): Route = {
+    RoutesCompiler.parse(path) match {
+      case Right(r: Route) => r
+      case Right(unexpected) =>
+        throw new RuntimeException(unexpected.toString)
+      case Left(err) =>
+        throw new RuntimeException(err)
+    }
+  }
+
+  private def toTemplate(inner: Configuration): Option[Template] = try {
+    inner.getConfig("template").map(c =>
+      Some(Template(c.getString("path").getOrElse(""), c.getString("engine")))
+    ).getOrElse(
+        inner.getString("template").map(s => Template(s))
+      )
+  } catch {
+    case ex:Throwable =>
+      // TODO again
+      //case ex: ConfigException.WrongType =>
+      inner.getString("template").map(s => Template(s))
+  }
+
+
+  private def toMap(conf: Option[Configuration]): Map[String, String] =
+    conf.map(_.entrySet
+      .map(e => e._1 -> e._2.render()))
+      .getOrElse(Map.empty).toMap
 
 
   override def onStart(): Unit = {
@@ -120,20 +147,20 @@ case class Stub(
                  )
 
 case class StubFilter(
-  headers: Seq[(String, String)] = Seq.empty
+  headers: Map[String, String] = Map.empty
                        )
 
 case class StubRoute(
   route: Route,
   template: Option[Template] = None,
   data: Option[String] = None,
-  status: Option[Status] = None,
-  headers: Seq[(String, String)] = Seq.empty,
-  params: Seq[(String, String)] = Seq.empty) {
+  status: Option[Int] = None,
+  headers: Map[String, String] = Map.empty,
+  params: Map[String, String] = Map.empty) {
 
   def verb = route.verb
   def path = route.path
 }
 
 
-case class Template(path:String, engine:String)
+case class Template(path:String, engine:Option[String] = None)
