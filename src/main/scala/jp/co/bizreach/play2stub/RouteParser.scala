@@ -368,7 +368,6 @@ object RoutesCompiler {
 
   def parse(text: String): Either[String, Rule] = {
     val result = parser.parse(text)
-    println(result)
     result match {
       case parser.Success(parsed:List[Rule], _) if parsed.size == 1 =>
         Right(parsed(0))

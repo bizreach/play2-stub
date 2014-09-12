@@ -1,17 +1,14 @@
 package jp.co.bizreach.play2stub
 
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import com.typesafe.config.ConfigException
 import jp.co.bizreach.play2stub.RoutesCompiler.{Comment, Include, Route}
 import org.apache.commons.io.{FilenameUtils, FileUtils}
 import play.api.Play._
 import play.api.mvc.{Result, RequestHeader}
 import play.api.{Configuration, Logger, Application, Plugin}
+import scala.collection.JavaConverters._
 
 
-/**
- * Created by scova0731 on 8/31/14.
- */
 class StubPlugin(app: Application) extends Plugin {
 
   private lazy val logger = Logger("jp.co.bizreach.play2stub.StubPlugin")
@@ -27,22 +24,24 @@ class StubPlugin(app: Application) extends Plugin {
   lazy val holder = new RouteHolder {
 
     // TODO  Load filters
-    override val routes = current.configuration.getConfig(confBasePath + ".routes").map { routes =>
-      routes.subKeys.flatMap { path =>
-        println(s"path: $path")
-        routes.getConfig(path).map { inner =>
-          println(s"inner: $inner")
-          StubRoute(
-            route = parseRoute(path.replace("~", ":")),
-            template = toTemplate(inner),
-            data = inner.getString("data"),
-            status = inner.getInt("status"),
-            headers = toMap(inner.getConfig("headers")),
-            params = toMap(inner.getConfig("params"))
-          )
-        }
-      }.toSeq
-    }.getOrElse(Seq.empty)
+
+    private val routeList =
+      current.configuration.getConfigList(confBasePath + ".routes")
+        .map(_.asScala).getOrElse(Seq.empty)
+    override val routes = routeList.map{ route =>
+      val path = route.subKeys.mkString
+
+      route.getConfig(path).map { inner =>
+        StubRoute(
+          route = parseRoute(path.replace("~", ":")),
+          template = toTemplate(inner),
+          data = inner.getString("data"),
+          status = inner.getInt("status"),
+          headers = toMap(inner.getConfig("headers")),
+          params = toMap(inner.getConfig("params"))
+        )
+      }.get
+    }
   }
 
 

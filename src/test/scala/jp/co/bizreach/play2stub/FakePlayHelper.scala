@@ -2,7 +2,7 @@ package jp.co.bizreach.play2stub
 
 import java.io.File
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigRenderOptions, ConfigFactory}
 import play.api.Configuration
 import play.api.test.FakeApplication
 import play.api.test.Helpers._
@@ -14,14 +14,15 @@ trait FakePlayHelper {
   def PlayApp(configs:(String, Any)*) = {
     val configFromFile = ConfigFactory.parseFile(
       new File(this.getClass.getResource("/conf/application.conf").toURI))
-      .entrySet.asScala.map(entry => entry.getKey -> entry.getValue.render()).toMap
+      .entrySet.asScala.map(entry => entry.getKey -> entry.getValue.render(ConfigRenderOptions.concise())).toMap
 
     FakeApplication(
+      path = new File(this.getClass.getResource("/").toURI),
       additionalPlugins = Seq(
         "jp.co.bizreach.play2handlebars.HandlebarsPlugin",
         "jp.co.bizreach.play2stub.StubPlugin"
       ),
-      additionalConfiguration = configFromFile ++
+      additionalConfiguration = //configFromFile ++
         configs.toSet.toMap
         + ("play2stub.view-root" -> "/views")
         + ("play2stub.data-root" -> "/data")
