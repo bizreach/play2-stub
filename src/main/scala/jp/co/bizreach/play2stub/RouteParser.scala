@@ -1,10 +1,13 @@
 package jp.co.bizreach.play2stub
 
 
+import java.net.URI
+
 import play.api.Logger
 
 import scala.io.Codec
 import scala.util.DynamicVariable
+import scala.util.control.Exception
 import scala.util.parsing.input._
 import scala.util.parsing.combinator._
 //import scala.util.matching._
@@ -20,14 +23,23 @@ import scala.language.postfixOps
  */
 trait PathPart
 
-case class DynamicPart(name: String, constraint: String, encode: Boolean) extends PathPart with Positional {
-  override def toString = """DynamicPart("""" + name + "\", \"\"\"" + constraint + "\"\"\"," + encode + ")" //"
+/**
+ * Because of Positional, DynamicPart cannot be replaced by play.core.DynamicPart
+ */
+case class DynamicPart(name: String, constraint: String, encodeable: Boolean) extends PathPart with Positional {
+  override def toString = """DynamicPart("""" + name + "\", \"\"\"" + constraint + "\"\"\"," + encodeable + ")" //"
 }
 
+/**
+ * Because of Positional, StaticPart cannot be replaced by play.core.StaticPart
+ */
 case class StaticPart(value: String) extends PathPart {
   override def toString = """StaticPart("""" + value + """")"""
 }
 
+/**
+ * Because of Positional, PathPattern cannot be replaced by play.core.PathPattern
+ */
 case class PathPattern(parts: Seq[PathPart]) {
   def has(key: String): Boolean = parts.exists {
     case DynamicPart(name, _, _) if name == key => true
@@ -38,6 +50,50 @@ case class PathPattern(parts: Seq[PathPart]) {
     case DynamicPart(name, constraint, encode) => "$" + name + "<" + constraint + ">"
     case StaticPart(path) => path
   }.mkString
+
+
+  ////////////////////////////////////
+  // Copied from play.core.PathPattern
+  ////////////////////////////////////
+  import java.util.regex._
+
+  private def decodeIfEncoded(decode: Boolean, groupCount: Int): Matcher => Either[Throwable, String] = matcher =>
+    Exception.allCatch[String].either {
+      if (decode) {
+        val group = matcher.group(groupCount)
+        // If param is not correctly encoded, get path will return null, so we prepend a / to it
+        new URI("/" + group).getPath.drop(1)
+      } else
+        matcher.group(groupCount)
+    }
+
+  lazy val (regex, groups) = {
+    Some(parts.foldLeft("", Map.empty[String, Matcher => Either[Throwable, String]], 0) { (s, e) =>
+      e match {
+        case StaticPart(p) => ((s._1 + Pattern.quote(p)), s._2, s._3)
+        case DynamicPart(k, r, encodeable) => {
+          ((s._1 + "(" + r + ")"),
+            (s._2 + (k -> decodeIfEncoded(encodeable, s._3 + 1))),
+            s._3 + 1 + Pattern.compile(r).matcher("").groupCount)
+        }
+      }
+    }).map {
+      case (r, g, _) => Pattern.compile("^" + r + "$") -> g
+    }.get
+  }
+
+
+  def apply(path: String): Option[Map[String, Either[Throwable, String]]] = {
+    val matcher = regex.matcher(path)
+    if (matcher.matches) {
+      Some(groups.map {
+        case (name, g) => name -> g(matcher)
+      }.toMap)
+    } else {
+      None
+    }
+  }
+
 
 }
 
@@ -212,15 +268,15 @@ object RoutesCompiler {
     }
 
     def singleComponentPathPart: Parser[DynamicPart] = (":" ~> identifier) ^^ {
-      case name => DynamicPart(name, """[^/]+""", encode = true)
+      case name => DynamicPart(name, """[^/]+""", encodeable = true)
     }
 
     def multipleComponentsPathPart: Parser[DynamicPart] = ("*" ~> identifier) ^^ {
-      case name => DynamicPart(name, """.+""", encode = false)
+      case name => DynamicPart(name, """.+""", encodeable = false)
     }
 
     def regexComponentPathPart: Parser[DynamicPart] = "$" ~> identifier ~ ("<" ~> (not(">") ~> """[^\s]""".r +) <~ ">" ^^ { case c => c.mkString }) ^^ {
-      case name ~ regex => DynamicPart(name, regex, encode = false)
+      case name ~ regex => DynamicPart(name, regex, encodeable = false)
     }
 
     def staticPathPart: Parser[StaticPart] = (not(":") ~> not("*") ~> not("$") ~> """[^\s]""".r +) ^^ {

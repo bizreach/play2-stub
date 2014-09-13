@@ -10,28 +10,27 @@ trait StubController extends Controller {
   /**
    * Generates an `Action` that serves a static resource.
    *
-   * @param path the file part extracted from the URL. May be URL encoded (note that %2F decodes to literal /).
    */
-  def at(path: String): Action[AnyContent] = Action { request =>
+  def at(): Action[AnyContent] = Action { request =>
 
-    val path2 = path
-    val params = request.queryString
+    Stub.route(request).map { route =>
+      route.data() match {
+        case Some(d) =>
+          route.template match {
+            case Template(path, "hbs") =>
+              Ok(HBS.any(path, d))
+            case Template(path, engine) =>
+              BadRequest(s"The engine: [$engine] is not supported for the request: [${route.path}]")
+          }
+          
+        case None =>
+          Ok(HBS(route.path))
+          //BadRequest(s"[${route.path}] was not found")
+        }
 
-//    val stub = Stub.route(request).get
-    val filePath = "test1"
-    val data = Stub.data("test1")//stub.data.get)
-
-
-
-    //
-    //
-    //
-
-    data match {
-      case Some(d) =>
-        Ok(HBS.any("test1", d))
-      case None =>
-        BadRequest(s"[$filePath] was not found")
-    }
+      }.getOrElse(
+        // Just try to apply HBS template at the same path
+        Ok(HBS(request.path))
+      )
   }
 }
