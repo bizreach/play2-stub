@@ -24,8 +24,8 @@ trait FakePlayHelper {
       ),
       additionalConfiguration = //configFromFile ++
         configs.toSet.toMap
-        + ("play2stub.view-root" -> "/views")
-        + ("play2stub.data-root" -> "/data")
+        //+ ("play2stub.view-root" -> "/views")
+        //+ ("play2stub.data-root" -> "/data")
     )}
 
   def runApp[T](app: FakeApplication)(block: FakeApplication => T): T = {

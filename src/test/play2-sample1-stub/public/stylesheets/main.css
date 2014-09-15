@@ -1,0 +1,10 @@
+.top {
+  background: #80c846 url(/@documentation/resources/style/header-pattern.png) fixed;
+  box-shadow: 0 -4px 0 rgba(0, 0, 0, 0.1) inset;
+  padding: 10px;
+  position: relative;
+}
+
+.top a {
+  color: white;
+}

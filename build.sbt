@@ -11,7 +11,8 @@ crossScalaVersions := Seq("2.10.3", "2.11.2")
 
 resolvers ++= Seq(
 //  "Local Repository" at "file://" + Path.userHome.absolutePath + "/.ivy2/local",
-  "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/"
+  "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
+  "Maven Central Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 )
 
 libraryDependencies ++= Seq(

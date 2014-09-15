@@ -1,6 +1,5 @@
   package controllers
 
-  import com.github.jknack.handlebars.Handlebars
   import play.api._
   import play.api.mvc._
   import jp.co.bizreach.play2handlebars.HBS
@@ -13,8 +12,8 @@
 
     def indexHbs = Action {
       Ok(HBS("index",
-        "welcome" -> HBS.safeString(views.html.play20.welcome("Your new application is ready.")),
-        "title" -> "Wlecome to Play"))
+        "welcome" -> HBS.safeString(views.html.play20.welcome("Welcome to Play 2 Stub")),
+        "title" -> "Welcome to Play"))
     }
 
     def simple = Action {

@@ -17,12 +17,14 @@ class StubPlugin(app: Application) extends Plugin {
   private val basePath = "play2stub"
 
   val engineConf = app.configuration.getString(basePath + ".engine").getOrElse("hbs")
-  val dataPathConf = app.configuration.getString(basePath + ".data-root").getOrElse("/app/data")
+  val dataRootConf = app.configuration.getString(basePath + ".data-root").getOrElse("/app/data")
+  val viewRootConf = app.configuration.getString(basePath + ".view-root").getOrElse("/app/views")
 
   trait RouteHolder {
     val routes: Seq[StubRouteConfig]
     val engine: String = engineConf
-    val dataPath: String = dataPathConf
+    val dataRoot: String = dataRootConf
+    val viewRoot: String = viewRootConf
   }
 
 
@@ -61,20 +63,20 @@ class StubPlugin(app: Application) extends Plugin {
     }
   }
 
-  private def toTemplate(inner: Configuration): Option[Template] =
-    try {
-      inner.getConfig("template").map(c =>
-        Template(
-          c.getString("path").getOrElse(""),
-          c.getString("engine").getOrElse(holder.engine)))
 
-    } catch {
-      case ex:Throwable =>
-        // TODO again
-        //case ex: ConfigException.WrongType =>
-        //inner.getString("template").map(s => Template(s, holder.engine))
-        None
-    }
+  private def toTemplate(inner: Configuration): Option[Template] =
+    if (inner.subKeys.contains("template")) {
+      val path =
+        if (inner.keys.contains("template.path")) inner.getString("template.path").get
+        else inner.getString("template").get
+      val engine =
+        if (inner.keys.contains("template.engine")) inner.getString("template.engine").get
+        else engineConf
+
+      Some(Template(path, engine))
+
+    } else
+      None
 
 
   private def toMap(conf: Option[Configuration]): Map[String, String] =
@@ -128,24 +130,70 @@ object Stub {
       //.map(r => RouteParams(r.path, request.queryString))
 
 
+  def exists(t: Template): Boolean =
+    pathWithExtension(t.path, t.engine, isData = false).exists
+
+
+
+  /**
+   * Read json data file and merge parameters into the json
+   */
+  def json(path:String, origParams:Map[String, String], extraParams:Map[String, String] = Map.empty):Option[JsonNode] = {
+    val params = origParams ++ extraParams
+    val jsonFile = pathWithExtension(path, "json")
+
+    if (jsonFile.exists()) {
+      val json = new ObjectMapper().readTree(FileUtils.readFileToString(jsonFile))
+      json match {
+        case node: ObjectNode =>
+          params.foreach { case (k, v) => node.put(k, v)}
+        case _ =>
+      }
+      Some(json)
+
+    } else if (params.nonEmpty) {
+      val node = new ObjectMapper().createObjectNode()
+      params.foreach{ case (k, v) => node.put(k, v) }
+      Some(node)
+
+    } else
+      None
+  }
+
+
+  /**
+   * Read static html file
+   */
+  def html(path:String):Option[String] = {
+    val htmlFile = pathWithExtension(path, "html", isData = false)
+
+    if (htmlFile.exists())
+      Some(FileUtils.readFileToString(htmlFile))
+    else
+      None
+  }
+
+  
   private[play2stub] def config = current.plugin[StubPlugin].map(_.holder)
     .getOrElse(throw new IllegalStateException("StubPlugin is not installed"))
 
-}
 
+  private[play2stub] def pathWithExtension(path: String, ext: String, 
+                                           isData: Boolean = true) = {
+    // TODO should get file from class path in production ?
+    //this.getClass.getResource("/").getPath,
+    val rootDir = 
+      if (isData) Stub.config.dataRoot
+      else Stub.config.viewRoot
+    
+    val pathWithExt = 
+      if (FilenameUtils.getExtension(path).isEmpty) path + "." + ext
+      else path
 
-object StubRouteConfig {
-
-
-
-  def init(): StubRouteConfig = {
-
-    val configRoot = current.configuration.getConfig("play2stub")
-
-
-    StubRouteConfig(null)
+    FileUtils.getFile(
+      System.getProperty("user.dir"),
+      rootDir, pathWithExt)
   }
-
 }
 
 
@@ -156,6 +204,8 @@ case class StubRoute(
 
   def verb = conf.route.verb
   def pathPattern = conf.route.path
+  def template = conf.template
+  def dataPath = conf.data.getOrElse(path)
 
 
   /**
@@ -171,37 +221,11 @@ case class StubRoute(
 
 
   /**
-   *
+   * Read json data file and merge parameters into the json
    */
-  def data(extraParams:Map[String, String] = Map.empty):Option[JsonNode] = {
-    val params = flatParams ++ extraParams
-    val dataPath = conf.data.getOrElse(path)
-    val pathWithExtension = 
-      if (FilenameUtils.getExtension(dataPath).isEmpty) dataPath + ".json" 
-      else dataPath
-    val file = FileUtils.getFile(this.getClass.getResource("/").getPath,
-      Stub.config.dataPath, pathWithExtension)
-    
-    if (file.exists()) {
-      val json = new ObjectMapper().readTree(FileUtils.readFileToString(file))
-      json match {
-        case node:ObjectNode =>
-          params.foreach{ case (k, v) => node.put(k, v) }
-        case _=>
-      }
-      Some(json)
+  def json(extraParams:Map[String, String] = Map.empty):Option[JsonNode] =
+    Stub.json(dataPath, flatParams, extraParams)
 
-    } else if (params.nonEmpty) {
-      val node = new ObjectMapper().createObjectNode()
-      params.foreach{ case (k, v) => node.put(k, v) }
-      Some(node)
-
-    } else
-      None
-  }
-
-  def template:Template =
-    conf.template.getOrElse(Template(path, Stub.config.engine))
 }
 
 
