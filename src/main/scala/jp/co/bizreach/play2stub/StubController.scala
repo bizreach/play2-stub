@@ -54,8 +54,14 @@ trait StubController extends Controller {
         }
 
       case None =>
-        //BadRequest(s"[${route.path}] was not found")
-        Ok(HBS(route.path))
+        route.template match {
+          case Some(Template(path, "hbs")) =>
+            Ok(HBS(path))
+          case Some(Template(path, engine)) =>
+            BadRequest(s"The engine: [$engine] is not supported for the request: [${route.path}]")
+          case None =>
+            Ok(HBS(route.path))
+        }
     }
 
 
