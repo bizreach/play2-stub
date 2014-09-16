@@ -143,7 +143,7 @@ object Stub {
     val jsonFile = pathWithExtension(path, "json")
 
     if (jsonFile.exists()) {
-      val json = new ObjectMapper().readTree(FileUtils.readFileToString(jsonFile))
+      val json = new ObjectMapper().readTree(FileUtils.readFileToString(jsonFile, "UTF-8"))
       json match {
         case node: ObjectNode =>
           params.foreach { case (k, v) => node.put(k, v)}
@@ -168,7 +168,7 @@ object Stub {
     val htmlFile = pathWithExtension(path, "html", isData = false)
 
     if (htmlFile.exists())
-      Some(FileUtils.readFileToString(htmlFile))
+      Some(FileUtils.readFileToString(htmlFile, "UTF-8"))
     else
       None
   }
