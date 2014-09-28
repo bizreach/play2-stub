@@ -69,7 +69,7 @@ trait StubController extends Controller {
    * When route is not defined
    */
   private def simpleResponse(path: String): Result = {
-    (Stub.json(path, Map.empty), Stub.exists(Template(path, "hbs"))) match {
+    (Stub.json(path), Stub.exists(Template(path, "hbs"))) match {
       case (Some(d), true) =>
         Ok(HBS.any(path, d))
       case (Some(d), false) =>

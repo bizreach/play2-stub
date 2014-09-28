@@ -12,3 +12,6 @@ GET     /simple                     controllers.Application.simple
 GET     /assets/*file               controllers.Assets.at(path="/public", file)
 
 GET     /*file                      jp.co.bizreach.play2stub.StubController.at(file)
+POST    /*file                      jp.co.bizreach.play2stub.StubController.at(file)
+PUT     /*file                      jp.co.bizreach.play2stub.StubController.at(file)
+DELETE  /*file                      jp.co.bizreach.play2stub.StubController.at(file)

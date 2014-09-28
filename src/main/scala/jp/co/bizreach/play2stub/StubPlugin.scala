@@ -2,7 +2,7 @@ package jp.co.bizreach.play2stub
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import jp.co.bizreach.play2stub.RoutesCompiler.{Comment, Include, Route}
+import jp.co.bizreach.play2stub.RoutesCompiler.Route
 import org.apache.commons.io.{FilenameUtils, FileUtils}
 import play.api.Play._
 import play.api.mvc.{Result, RequestHeader}
@@ -45,11 +45,18 @@ class StubPlugin(app: Application) extends Plugin {
           template = toTemplate(inner),
           data = inner.getString("data"),
           status = inner.getInt("status"),
+          noResponse = inner.getBoolean("noResponse").getOrElse(false),
           headers = toMap(inner.getConfig("headers")),
           params = toMap(inner.getConfig("params"))
         )
       }.get
     }
+  }
+
+
+  override def onStart(): Unit = {
+    // Instantiate stub configuration holder
+    holder
   }
 
 
@@ -67,11 +74,15 @@ class StubPlugin(app: Application) extends Plugin {
   private def toTemplate(inner: Configuration): Option[Template] =
     if (inner.subKeys.contains("template")) {
       val path =
-        if (inner.keys.contains("template.path")) inner.getString("template.path").get
-        else inner.getString("template").get
+        if (inner.keys.contains("template.path"))
+          inner.getString("template.path").get
+        else
+          inner.getString("template").get
       val engine =
-        if (inner.keys.contains("template.engine")) inner.getString("template.engine").get
-        else engineConf
+        if (inner.keys.contains("template.engine"))
+          inner.getString("template.engine").get
+        else
+          engineConf
 
       Some(Template(path, engine))
 
@@ -83,22 +94,6 @@ class StubPlugin(app: Application) extends Plugin {
     conf.map(_.entrySet
       .map(e => e._1 -> e._2.render()))
       .getOrElse(Map.empty).toMap
-
-
-  override def onStart(): Unit = {
-    current.configuration
-    // Load application.conf
-
-    holder
-  }
-
-
-
-  override def onStop(): Unit = super.onStop()
-
-
-
-  override def enabled: Boolean = super.enabled
 }
 
 
@@ -138,9 +133,10 @@ object Stub {
   /**
    * Read json data file and merge parameters into the json
    */
-  def json(path:String, origParams:Map[String, String], extraParams:Map[String, String] = Map.empty):Option[JsonNode] = {
+  def json(path:String, origParams:Map[String, String] = Map.empty,
+           extraParams:Map[String, String] = Map.empty):Option[JsonNode] = {
     val params = origParams ++ extraParams
-    val jsonFile = pathWithExtension(path, "json")
+    val jsonFile = pathWithExtension(path, "json", params)
 
     if (jsonFile.exists()) {
       val json = new ObjectMapper().readTree(FileUtils.readFileToString(jsonFile, "UTF-8"))
@@ -178,17 +174,19 @@ object Stub {
     .getOrElse(throw new IllegalStateException("StubPlugin is not installed"))
 
 
-  private[play2stub] def pathWithExtension(path: String, ext: String, 
-                                           isData: Boolean = true) = {
-    // TODO should get file from class path in production ?
-    //this.getClass.getResource("/").getPath,
-    val rootDir = 
+  private[play2stub] def pathWithExtension(
+    path: String, ext: String, params: Map[String, String] = Map.empty, isData: Boolean = true) = {
+    val rootDir =
       if (isData) Stub.config.dataRoot
       else Stub.config.viewRoot
-    
+
+    val filledPath = params.foldLeft(path){ (filled, param) =>
+      filled.replace(":" + param._1, param._2)
+    }
+
     val pathWithExt = 
-      if (FilenameUtils.getExtension(path).isEmpty) path + "." + ext
-      else path
+      if (FilenameUtils.getExtension(filledPath).isEmpty) filledPath + "." + ext
+      else filledPath
 
     FileUtils.getFile(
       System.getProperty("user.dir"),
@@ -204,7 +202,6 @@ case class StubRoute(
 
   def verb = conf.route.verb
   def pathPattern = conf.route.path
-  def template = conf.template
   def dataPath = conf.data.getOrElse(path)
 
 
@@ -218,6 +215,18 @@ case class StubRoute(
       .withFilter(_._2.length > 0).map(q => q._1 -> q._2(0))
     fromPath ++ fromQuery
   }
+
+
+  /**
+   *
+   */
+  def template: Option[Template] =
+    conf.template.map{t =>
+      val filledPath = flatParams.foldLeft(t.path) { (filled, param) =>
+        filled.replace(":" + param._1, param._2)
+      }
+      t.copy(path = filledPath)
+    }
 
 
   /**
@@ -243,6 +252,7 @@ case class StubRouteConfig(
   template: Option[Template] = None,
   data: Option[String] = None,
   status: Option[Int] = None,
+  noResponse: Boolean = false,
   headers: Map[String, String] = Map.empty,
   params: Map[String, String] = Map.empty)
 
