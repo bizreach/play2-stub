@@ -16,7 +16,8 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.typesafe.play"  %% "play"                 % "2.3.3"    % "provided",
+  "com.typesafe.play"  %% "play"                 % "2.3.4"    % "provided",
+  "com.typesafe.play"  %% "play-ws"              % "2.3.4"    % "provided",
   "commons-io"          % "commons-io"           % "2.4",
   "jp.co.bizreach"     %% "play2-handlebars"     % "0.2-SNAPSHOT",
   "org.scalatest"      %% "scalatest"            % "2.2.1"    % "test",

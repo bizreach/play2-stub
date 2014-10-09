@@ -19,12 +19,15 @@ class StubPlugin(app: Application) extends Plugin {
   val engineConf = app.configuration.getString(basePath + ".engine").getOrElse("hbs")
   val dataRootConf = app.configuration.getString(basePath + ".data-root").getOrElse("/app/data")
   val viewRootConf = app.configuration.getString(basePath + ".view-root").getOrElse("/app/views")
+  val proxyRootConf = app.configuration.getString(basePath + ".proxy-root")
 
   trait RouteHolder {
     val routes: Seq[StubRouteConfig]
     val engine: String = engineConf
     val dataRoot: String = dataRootConf
     val viewRoot: String = viewRootConf
+    val proxyRoot: Option[String] =proxyRootConf
+    val isProxyEnabled: Boolean = proxyRootConf.isDefined
   }
 
 
@@ -42,6 +45,7 @@ class StubPlugin(app: Application) extends Plugin {
       route.getConfig(path).map { inner =>
         StubRouteConfig(
           route = parseRoute(path.replace("~", ":")),
+          proxy = inner.getString("proxy"),
           template = toTemplate(inner),
           data = inner.getString("data"),
           status = inner.getInt("status"),
@@ -54,8 +58,10 @@ class StubPlugin(app: Application) extends Plugin {
   }
 
 
+  /**
+   *  Instantiate stub configuration holder on starting up
+   */
   override def onStart(): Unit = {
-    // Instantiate stub configuration holder
     holder
   }
 
@@ -169,6 +175,11 @@ object Stub {
       None
   }
 
+
+  // TODO implement later
+  def proxyUrl(proxyPath:Option[String]):Option[String] =
+    config.proxyRoot.map(_ + proxyPath.getOrElse(""))
+
   
   private[play2stub] def config = current.plugin[StubPlugin].map(_.holder)
     .getOrElse(throw new IllegalStateException("StubPlugin is not installed"))
@@ -203,6 +214,7 @@ case class StubRoute(
   def verb = conf.route.verb
   def pathPattern = conf.route.path
   def dataPath = conf.data.getOrElse(path)
+  def proxyUrl = Stub.proxyUrl(conf.proxy)
 
 
   /**
@@ -250,6 +262,7 @@ case class StubFilter(
 case class StubRouteConfig(
   route: Route,
   template: Option[Template] = None,
+  proxy: Option[String] = None,
   data: Option[String] = None,
   status: Option[Int] = None,
   noResponse: Boolean = false,
