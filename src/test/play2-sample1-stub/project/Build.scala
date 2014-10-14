@@ -13,6 +13,8 @@ object ApplicationBuild extends Build {
         "Maven Central Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
       ),
       libraryDependencies ++= Seq(
+        // WS is needed for proxying requests
+        ws,
         "jp.co.bizreach" %% "play2-stub" % "0.1-SNAPSHOT"
       )
     )

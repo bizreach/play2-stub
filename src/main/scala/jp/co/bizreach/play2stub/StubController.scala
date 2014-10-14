@@ -75,13 +75,12 @@ trait StubController extends Controller {
           .withQueryString(request.queryString.mapValues(_.headOption.getOrElse("")).toSeq:_*)
           .withBody(request.body.asText.getOrElse(""))
           .withMethod(request.method)
-          .getStream().map {
+          .stream().map {
           case (response, body) =>
-            Result(ResponseHeader(
-              response.status,
-              //flatten(response.headers)),
-              response.headers.mapValues(_.headOption.getOrElse(""))),
-              body)
+            Status(response.status)
+              .chunked(body)
+              .withHeaders(response.headers.mapValues(_.headOption.getOrElse("")).toSeq:_*)
+
         }
       case None =>
         f

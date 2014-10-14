@@ -20,6 +20,7 @@ class StubPlugin(app: Application) extends Plugin {
   val dataRootConf = app.configuration.getString(basePath + ".data-root").getOrElse("/app/data")
   val viewRootConf = app.configuration.getString(basePath + ".view-root").getOrElse("/app/views")
   val proxyRootConf = app.configuration.getString(basePath + ".proxy-root")
+  val enableProxyConf = app.configuration.getBoolean(basePath + ".enable-proxy")
 
   trait RouteHolder {
     val routes: Seq[StubRouteConfig]
@@ -27,7 +28,7 @@ class StubPlugin(app: Application) extends Plugin {
     val dataRoot: String = dataRootConf
     val viewRoot: String = viewRootConf
     val proxyRoot: Option[String] =proxyRootConf
-    val isProxyEnabled: Boolean = proxyRootConf.isDefined
+    val isProxyEnabled: Boolean = enableProxyConf.getOrElse(false)
   }
 
 
@@ -176,9 +177,13 @@ object Stub {
   }
 
 
-  // TODO implement later
+  // TODO check if the path start with http(s)://
   def proxyUrl(proxyPath:Option[String]):Option[String] =
-    config.proxyRoot.map(_ + proxyPath.getOrElse(""))
+    (config.proxyRoot, config.isProxyEnabled) match {
+      case (Some(root), true) => proxyPath.map(root + _)
+      case (None, true) => proxyPath
+      case (_, false) => None
+    }
 
   
   private[play2stub] def config = current.plugin[StubPlugin].map(_.holder)
