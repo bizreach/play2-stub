@@ -9,6 +9,7 @@ import play.api.mvc.{Result, RequestHeader}
 import play.api.{Configuration, Logger, Application, Plugin}
 import play.core.Router.RouteParams
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 
 
 class StubPlugin(app: Application) extends Plugin {
@@ -21,6 +22,8 @@ class StubPlugin(app: Application) extends Plugin {
   val viewRootConf = app.configuration.getString(basePath + ".view-root").getOrElse("/app/views")
   val proxyRootConf = app.configuration.getString(basePath + ".proxy-root")
   val enableProxyConf = app.configuration.getBoolean(basePath + ".enable-proxy")
+  val beforePluginList = app.configuration.getStringSeq(basePath + "filters.before").getOrElse(Seq.empty)
+  val afterPluginList = app.configuration.getStringSeq(basePath + "filters.after").getOrElse(Seq.empty)
 
   trait RouteHolder {
     val routes: Seq[StubRouteConfig]
@@ -29,12 +32,13 @@ class StubPlugin(app: Application) extends Plugin {
     val viewRoot: String = viewRootConf
     val proxyRoot: Option[String] =proxyRootConf
     val isProxyEnabled: Boolean = enableProxyConf.getOrElse(false)
+    val beforeFilters: Seq[BeforeFilter] = loadFilters[BeforeFilter](beforePluginList)
+    val afterFilters: Seq[AfterFilter] = loadFilters[AfterFilter](afterPluginList)
   }
 
 
   lazy val holder = new RouteHolder {
 
-    // TODO  Load filters
 
     private val routeList =
       current.configuration.getConfigList(basePath + ".routes")
@@ -65,6 +69,10 @@ class StubPlugin(app: Application) extends Plugin {
   override def onStart(): Unit = {
     holder
   }
+
+
+  private def loadFilters[T](filters:Seq[String])(implicit ct: ClassTag[T]): Seq[T] =
+    filters.map(f => app.classloader.loadClass(f).newInstance().asInstanceOf[T])
 
 
   private def parseRoute(path: String): Route = {
@@ -106,11 +114,16 @@ class StubPlugin(app: Application) extends Plugin {
 
 object Stub {
 
-  def template(params:Map[String, String]) = {}
+//  def template(params:Map[String, String]) = {}
 
   def addHeaders(result:Result):Result = {
     result.withHeaders("Content-Type" -> "application/json")
   }
+
+  def beforeFilters: Seq[BeforeFilter] = config.beforeFilters
+
+
+  def afterFilters: Seq[AfterFilter] = config.afterFilters
 
 
   /**

@@ -1,9 +1,7 @@
 package jp.co.bizreach.play2stub
 
 import jp.co.bizreach.play2handlebars.HBS
-import play.api.Logger
-import play.api.libs.iteratee.Enumerator
-import play.api.libs.ws.{WSResponseHeaders, WS, WSResponse}
+import play.api.libs.ws.WS
 import play.api.mvc._
 import play.mvc.Http.{HeaderNames, MimeTypes}
 import play.api.Play.current
@@ -14,18 +12,29 @@ object StubController extends StubController
 
 trait StubController extends Controller {
 
-//  implicit def withHC(result: Future[Result]): Future[Result] = {
-//
-//    result.map(_
-//      .withHeaders()
-//      .withCookies())
-//  }
-
   /**
    * Generates an `Action` that serves a static resource.
    *
    */
-  def at(path: String) = Action.async { implicit request =>
+  def at(path: String) = Action.async { firstReq =>
+
+    implicit val request: Request[AnyContent] =
+      Stub.beforeFilters.foldLeft(firstReq) { case (filteredReq, filter) =>
+        filter.process(filteredReq)
+      }
+
+    main(path).map(firstRes =>
+      Stub.afterFilters.foldLeft(firstRes) { case (filteredRes, filter) =>
+          filter.process(request, filteredRes)
+      }
+    )
+  }
+
+
+  /**
+   * Main processing part.
+   */
+  private def main(path: String)(implicit request: Request[AnyContent]): Future[Result] =
     Stub.route(request).map { route =>
       htmlFirstOr(route.path) {
         requestToProxyOr(route) {
@@ -35,14 +44,12 @@ trait StubController extends Controller {
         }
       }
     }.getOrElse(
-      htmlFirstOr(request.path) {
-        Future {
-          simpleResponse(request.path)
+        htmlFirstOr(request.path) {
+          Future {
+            simpleResponse(request.path)
+          }
         }
-      }
-    )
-  }
-
+      )
 
 
 
