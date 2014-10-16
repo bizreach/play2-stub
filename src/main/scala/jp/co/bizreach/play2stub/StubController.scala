@@ -84,7 +84,7 @@ trait StubController extends Controller {
           .withBody(request.body.asText.getOrElse(""))
           .withMethod(request.method)
 
-        route.template match {
+        route.template(request) match {
           case Some(t) =>
             holder.execute().map { response =>
               Logger.debug(s"ROUTE: Proxy:$url, Template:${t.path}")
@@ -112,10 +112,11 @@ trait StubController extends Controller {
   /**
    * When route is defined
    */
-  private def routeResponse(route: StubRoute): Result =
+  private def routeResponse(route: StubRoute)
+                           (implicit request:Request[AnyContent]): Result =
     route.json() match {
       case Some(d) =>
-        route.template match {
+        route.template(request) match {
           case Some(Template(path, "hbs")) =>
             Ok(HBS.any(path, d))
           case Some(Template(path, engine)) =>
@@ -125,7 +126,7 @@ trait StubController extends Controller {
         }
 
       case None =>
-        route.template match {
+        route.template(request) match {
           case Some(Template(path, "hbs")) =>
             Ok(HBS(path))
           case Some(Template(path, engine)) =>
