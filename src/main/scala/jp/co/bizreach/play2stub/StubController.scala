@@ -1,6 +1,7 @@
 package jp.co.bizreach.play2stub
 
 import jp.co.bizreach.play2handlebars.HBS
+import play.api.Logger
 import play.api.libs.ws.WS
 import play.api.mvc._
 import play.mvc.Http.{HeaderNames, MimeTypes}
@@ -75,20 +76,33 @@ trait StubController extends Controller {
                             (implicit request:Request[AnyContent]): Future[Result] = {
     route.proxyUrl match {
       case Some(url) =>
-        WS.url(url)
+        val holder = WS.url(url)
           //.withRequestTimeout(10000)
           .withFollowRedirects(follow = false)
           .withHeaders(request.headers.toSimpleMap.toSeq:_*)
           .withQueryString(request.queryString.mapValues(_.headOption.getOrElse("")).toSeq:_*)
           .withBody(request.body.asText.getOrElse(""))
           .withMethod(request.method)
-          .stream().map {
-          case (response, body) =>
-            Status(response.status)
-              .chunked(body)
-              .withHeaders(response.headers.mapValues(_.headOption.getOrElse("")).toSeq:_*)
 
+        route.template match {
+          case Some(t) =>
+            holder.execute().map { response =>
+              Logger.debug(s"ROUTE: Proxy:$url, Template:${t.path}")
+              Ok(HBS(t.path, "data" -> response.json))
+                .withHeaders((response.allHeaders.mapValues(_.headOption.getOrElse("")) -
+                  HeaderNames.CONTENT_LENGTH - HeaderNames.CONTENT_TYPE).toSeq:_*)
+                .withHeaders(HeaderNames.CONTENT_TYPE -> MimeTypes.HTML) // TODO think again
+
+            }
+          case None =>
+            holder.stream().map { case (response, body) =>
+              Logger.debug(s"ROUTE: Proxy:$url, Stream")
+              Status(response.status)
+                  .chunked(body)
+                  .withHeaders(response.headers.mapValues(_.headOption.getOrElse("")).toSeq:_*)
+            }
         }
+
       case None =>
         f
     }
