@@ -1,5 +1,6 @@
 package jp.co.bizreach.play2stub
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import jp.co.bizreach.play2handlebars.HBS
 import play.api.Logger
 import play.api.libs.ws.WS
@@ -17,16 +18,26 @@ trait StubController extends Controller {
    * Generates an `Action` that serves a static resource.
    *
    */
-  def at(path: String) = Action.async { firstReq =>
+  def at(path: String) = Action.async { implicit request =>
 
-    implicit val request: Request[AnyContent] =
+    process(path)
+
+  }
+
+  /**
+   * Execute before-filters, main process and after-filters
+   */
+  protected def process(path: String)(implicit firstReq: Request[AnyContent]): Future[Result] = {
+
+    val request =
       Stub.beforeFilters.foldLeft(firstReq) { case (filteredReq, filter) =>
         filter.process(filteredReq)
       }
 
-    main(path).map(firstRes =>
+    processMain(path)(request).map(firstRes =>
+
       Stub.afterFilters.foldLeft(firstRes) { case (filteredRes, filter) =>
-          filter.process(request, filteredRes)
+        filter.process(request, filteredRes)
       }
     )
   }
@@ -35,7 +46,7 @@ trait StubController extends Controller {
   /**
    * Main processing part.
    */
-  private def main(path: String)(implicit request: Request[AnyContent]): Future[Result] =
+  protected def processMain(path: String)(implicit request: Request[AnyContent]): Future[Result] =
     Stub.route(request).map { route =>
       htmlFirstOr(route.path) {
         requestToProxyOr(route) {
@@ -57,7 +68,7 @@ trait StubController extends Controller {
   /**
    * Check if HTML file exists first, or execute a function
    */
-  private def htmlFirstOr(path: String)(f: => Future[Result]): Future[Result] =
+  protected def htmlFirstOr(path: String)(f: => Future[Result]): Future[Result] =
     Stub.html(path) match {
       case Some(html) =>
         Future {
@@ -72,7 +83,7 @@ trait StubController extends Controller {
    * https://github.com/playframework/playframework/issues/2239
    * https://www.playframework.com/documentation/2.3.5/ScalaWS
    */
-  private def requestToProxyOr(route: StubRoute)(f: => Future[Result])
+  protected def requestToProxyOr(route: StubRoute)(f: => Future[Result])
                             (implicit request:Request[AnyContent]): Future[Result] = {
     route.proxyUrl match {
       case Some(url) =>
@@ -88,15 +99,26 @@ trait StubController extends Controller {
           case Some(t) =>
             holder.execute().map { response =>
               Logger.debug(s"ROUTE: Proxy:$url, Template:${t.path}")
-              Ok(HBS(t.path, "data" -> response.json))
-                .withHeaders((response.allHeaders.mapValues(_.headOption.getOrElse("")) -
-                  HeaderNames.CONTENT_LENGTH - HeaderNames.CONTENT_TYPE).toSeq:_*)
-                .withHeaders(HeaderNames.CONTENT_TYPE -> MimeTypes.HTML) // TODO think again
 
+              if (response.status < 300) {
+                // Convert to Jackson node instead of Play.api.Json currently
+                val jsonNode = new ObjectMapper().readTree(
+                  response.underlying[com.ning.http.client.Response].getResponseBodyAsBytes)
+
+                Ok(HBS(t.path, route.flatParams ++ templateSpecificParams + ("res" -> jsonNode)))
+                  .withHeaders((response.allHeaders.mapValues(_.headOption.getOrElse("")) -
+                  HeaderNames.CONTENT_LENGTH - HeaderNames.CONTENT_TYPE).toSeq: _*)
+                  .withHeaders(HeaderNames.CONTENT_TYPE -> MimeTypes.HTML) // TODO think again
+
+              } else
+                Status(response.status)(response.body)
+                  .withHeaders(response.allHeaders.mapValues(_.headOption.getOrElse("")).toSeq:_*)
             }
+
           case None =>
             holder.stream().map { case (response, body) =>
               Logger.debug(s"ROUTE: Proxy:$url, Stream")
+
               Status(response.status)
                   .chunked(body)
                   .withHeaders(response.headers.mapValues(_.headOption.getOrElse("")).toSeq:_*)
@@ -112,7 +134,8 @@ trait StubController extends Controller {
   /**
    * When route is defined
    */
-  private def routeResponse(route: StubRoute)
+  // TODO add templateSpecificParams only when rendering templates
+  protected def routeResponse(route: StubRoute)
                            (implicit request:Request[AnyContent]): Result =
     route.json() match {
       case Some(d) =>
@@ -140,7 +163,8 @@ trait StubController extends Controller {
   /**
    * When route is not defined
    */
-  private def simpleResponse(path: String): Result = {
+  // TODO add templateSpecificParams only when rendering templates
+  protected def simpleResponse(path: String): Result = {
     (Stub.json(path), Stub.exists(Template(path, "hbs"))) match {
       case (Some(d), true) =>
         Ok(HBS.any(path, d))
@@ -151,5 +175,9 @@ trait StubController extends Controller {
       case (None, false) =>
         NotFound("Neither template file nor data file are found.")
     }
+  }
+
+  protected def templateSpecificParams(implicit request:Request[AnyContent]):Map[String, String] = {
+    Map("rawQueryString" -> request.rawQueryString, "path" -> request.path)
   }
 }
