@@ -7,8 +7,10 @@ import com.fasterxml.jackson.databind.{ObjectMapper, JsonNode}
 import jp.co.bizreach.play2stub.RoutesCompiler.Route
 import org.apache.commons.io.{FilenameUtils, FileUtils}
 import play.api.Play._
-import play.api.mvc.{Request, AnyContent, RequestHeader}
+import play.api.mvc.{Result, Request, AnyContent, RequestHeader}
 import play.core.Router.RouteParams
+
+import scala.concurrent.Future
 
 object Stub {
 
@@ -36,6 +38,30 @@ object Stub {
   //.map(r => RouteParams(r.path, request.queryString))
 
 
+  def render(path: String, route: Option[StubRoute] = None, params: Option[Any] = None)
+            (implicit request: Request[AnyContent]): Option[Result] =
+    holder.renderers.foldLeft(None:Option[Result]) { case (result, renderer) =>
+      if (result.isEmpty)
+        renderer.render(path, route, params)
+      else
+        result
+    }
+
+
+  def process(implicit request: Request[AnyContent]):Option[Future[Result]] = {
+    implicit val route = Stub.route(request)
+    holder.processors.foldLeft(None:Option[Future[Result]]) { case (result, processor) =>
+      processor.process
+    }
+  }
+
+  def params(implicit request: Request[AnyContent]): Map[String, Any] = {
+    implicit val route = Stub.route(request)
+    holder.paramBuilders.foldLeft(Map[String, Any]()){ case (map, builder) =>
+      builder.build
+    }
+  }
+
   /**
    *
    */
@@ -49,11 +75,13 @@ object Stub {
   def json(route: StubRoute, extraParams:Map[String, String] = Map.empty):Option[JsonNode] =
     json(route.dataPath, route.flatParams ++ extraParams)
 
+
   /**
    * Read json data file and merge parameters into the json
    */
   def json(path:String): Option[JsonNode] =
     json(path, Map[String, String]())
+
 
   /**
    * Read json data file and merge parameters into the json
@@ -157,8 +185,6 @@ case class StubRoute(
    */
   def template(request: Request[AnyContent]): Option[Template] =
     Stub.templateResolver.resolve(request, this)
-
-
 }
 
 

@@ -20,9 +20,19 @@ class StubPlugin(app: Application) extends Plugin {
   val viewRootConf = app.configuration.getString(basePath + ".view-root").getOrElse("/app/views")
   val proxyRootConf = app.configuration.getString(basePath + ".proxy-root")
   val enableProxyConf = app.configuration.getBoolean(basePath + ".enable-proxy")
-  val beforePluginList = app.configuration.getStringSeq(basePath + "filters.before").getOrElse(Seq.empty)
-  val afterPluginList = app.configuration.getStringSeq(basePath + "filters.after").getOrElse(Seq.empty)
+  val beforePluginList = app.configuration.getStringSeq(basePath + ".filters.before").getOrElse(Seq.empty)
+  val afterPluginList = app.configuration.getStringSeq(basePath + ".filters.after").getOrElse(Seq.empty)
+  val rendererList = app.configuration.getStringSeq(basePath + ".renderers")
+  val processorList = app.configuration.getStringSeq(basePath + ".processors")
+  val paramBuilderList = app.configuration.getStringSeq(basePath + ".param-builders")
   val templateResolverConf = app.configuration.getString(basePath + ".template-resolver")
+
+  private def defaultRenderers =
+    Seq(new HandlebarsRenderer)
+  private def defaultProcessors =
+    Seq(new TemplateProcessor, new StaticHtmlProcessor, new JsonProcessor, new ProxyProcessor)
+  private def defaultParamBuilders =
+    Seq(new PathAndQueryStringParamBuilder)
 
   trait RouteHolder {
     val routes: Seq[StubRouteConfig]
@@ -33,6 +43,9 @@ class StubPlugin(app: Application) extends Plugin {
     val isProxyEnabled: Boolean = enableProxyConf.getOrElse(false)
     val beforeFilters: Seq[BeforeFilter] = loadFilters[BeforeFilter](beforePluginList)
     val afterFilters: Seq[AfterFilter] = loadFilters[AfterFilter](afterPluginList)
+    val renderers: Seq[Renderer] = rendererList.map(loadFilters[Renderer]).getOrElse(defaultRenderers)
+    val processors: Seq[Processor] = processorList.map(loadFilters[Processor]).getOrElse(defaultProcessors)
+    val paramBuilders: Seq[ParamBuilder] = paramBuilderList.map(loadFilters[ParamBuilder]).getOrElse(defaultParamBuilders)
     val templateResolver: TemplateResolver = loadTemplateResolver(templateResolverConf)
   }
 
