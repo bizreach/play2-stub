@@ -135,7 +135,6 @@ trait StubController extends Controller {
 //  /**
 //   * When route is defined
 //   */
-//  // TODO add templateSpecificParams only when rendering templates
 //  protected def routeResponse(route: StubRoute)
 //                           (implicit request:Request[AnyContent]): Result =
 //    Stub.json(route) match {
@@ -164,7 +163,6 @@ trait StubController extends Controller {
 //  /**
 //   * When route is not defined
 //   */
-//  // TODO add templateSpecificParams only when rendering templates
 //  protected def simpleResponse(path: String): Result = {
 //    (Stub.json(path), Stub.exists(Template(path, "hbs"))) match {
 //      case (Some(d), true) =>

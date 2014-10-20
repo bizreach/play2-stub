@@ -51,14 +51,17 @@ object Stub {
   def process(implicit request: Request[AnyContent]):Option[Future[Result]] = {
     implicit val route = Stub.route(request)
     holder.processors.foldLeft(None:Option[Future[Result]]) { case (result, processor) =>
-      processor.process
+      if (result.isEmpty)
+        processor.process
+      else
+        result
     }
   }
 
   def params(implicit request: Request[AnyContent]): Map[String, Any] = {
     implicit val route = Stub.route(request)
     holder.paramBuilders.foldLeft(Map[String, Any]()){ case (map, builder) =>
-      builder.build
+      map ++ builder.build
     }
   }
 

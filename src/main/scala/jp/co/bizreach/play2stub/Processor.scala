@@ -65,11 +65,9 @@ class JsonProcessor extends Results with Processor {
   override def process(implicit request: Request[AnyContent],
                        route: Option[StubRoute]): Option[Future[Result]] = {
 
-    Some(Future {
-      route
-        .map(r => Ok(Stub.json(r).toString))
-        .getOrElse( Ok(Stub.json(request.path).toString))
-    })
+    route
+      .map(r => Stub.json(r).map(j => Future { Ok(j.toString)} ))
+      .getOrElse( Stub.json(request.path).map(j => Future { Ok(j.toString)} ))
   }
 }
 

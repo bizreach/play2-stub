@@ -31,13 +31,12 @@ class HandlebarsRenderer extends Controller with Renderer {
         case _=> None
       }
 
-    val canRender = route
-      .map(resolveTemplateWithRoute)
-      .getOrElse(Some(Template(path, "hbs")))
-      .exists(Stub.exists)
+    val template = route
+      .flatMap(resolveTemplateWithRoute)
+      .getOrElse(Template(path, "hbs"))
 
-    if (canRender)
-      Some(renderHbs(path, params))
+    if (Stub.exists(template))
+      Some(renderHbs(template.path, params))
     else
       None
 
