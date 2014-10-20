@@ -33,7 +33,7 @@ class StubPluginConfigurationSpec extends FunSpec with Matchers with FakePlayHel
         assert(route1.get.path.toString === "/pattern1")
         assert(route1.get.pathPattern.parts.size === 1)
 
-        val data1 = route1.get.json()
+        val data1 = Stub.json(route1.get)
         assert(data1.isDefined)
         assert(data1.get.get("who") !== null)
         assert(data1.get.get("who").asText() === "Play 2 Stub")
@@ -42,7 +42,7 @@ class StubPluginConfigurationSpec extends FunSpec with Matchers with FakePlayHel
         // Pattern 2 - path definition with a parameter
         val fakeRequest2 = FakeRequest(Helpers.GET, "/pattern2/Dr.")
         val route2 = Stub.route(fakeRequest2)
-        val data2 = route2.get.json()
+        val data2 = Stub.json(route2.get)
         assert(data2.get.get("who") === null)
         assert(data2.get.get("title").asText() === "Dr.")
 
@@ -50,7 +50,7 @@ class StubPluginConfigurationSpec extends FunSpec with Matchers with FakePlayHel
         // Pattern 3 - path definition with a parameter, with data
         val fakeRequest3 = FakeRequest(Helpers.GET, "/pattern3/Dr.")
         val route3 = Stub.route(fakeRequest3)
-        val data3 = route3.get.json()
+        val data3 = Stub.json(route3.get)
         assert(data3.get.get("who").asText() === "Play 2 Stub")
         assert(data3.get.get("title").asText() === "Dr.")
 

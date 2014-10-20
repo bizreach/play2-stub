@@ -24,6 +24,7 @@ trait StubController extends Controller {
 
   }
 
+
   /**
    * Execute before-filters, main process and after-filters
    */
@@ -105,7 +106,7 @@ trait StubController extends Controller {
                 val jsonNode = new ObjectMapper().readTree(
                   response.underlying[com.ning.http.client.Response].getResponseBodyAsBytes)
 
-                Ok(HBS(t.path, route.flatParams ++ templateSpecificParams + ("res" -> jsonNode)))
+                Ok(HBS(t.path, route.flatParams ++ extraParamsForTemplate + ("res" -> jsonNode)))
                   .withHeaders((response.allHeaders.mapValues(_.headOption.getOrElse("")) -
                   HeaderNames.CONTENT_LENGTH - HeaderNames.CONTENT_TYPE).toSeq: _*)
                   .withHeaders(HeaderNames.CONTENT_TYPE -> MimeTypes.HTML) // TODO think again
@@ -137,7 +138,7 @@ trait StubController extends Controller {
   // TODO add templateSpecificParams only when rendering templates
   protected def routeResponse(route: StubRoute)
                            (implicit request:Request[AnyContent]): Result =
-    route.json() match {
+    Stub.json(route) match {
       case Some(d) =>
         route.template(request) match {
           case Some(Template(path, "hbs")) =>
@@ -177,7 +178,10 @@ trait StubController extends Controller {
     }
   }
 
-  protected def templateSpecificParams(implicit request:Request[AnyContent]):Map[String, String] = {
+
+  /**
+   * Pass extra information as params only for template rendering
+   */
+  protected def extraParamsForTemplate(implicit request:Request[AnyContent]) =
     Map("rawQueryString" -> request.rawQueryString, "path" -> request.path)
-  }
 }

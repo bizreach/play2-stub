@@ -7,6 +7,9 @@ import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 
+/**
+ *
+ */
 class StubPlugin(app: Application) extends Plugin {
 
   private val logger = Logger("jp.co.bizreach.play2stub.StubPlugin")
@@ -34,6 +37,9 @@ class StubPlugin(app: Application) extends Plugin {
   }
 
 
+  /**
+   * Holds stub configuration values
+   */
   lazy val holder = new RouteHolder {
 
     private val routeList =
@@ -69,16 +75,25 @@ class StubPlugin(app: Application) extends Plugin {
   }
 
 
-  private def loadFilters[T](filters:Seq[String])(implicit ct: ClassTag[T]): Seq[T] =
+  /**
+   *
+   */
+  private def loadFilters[T](filters: Seq[String])(implicit ct: ClassTag[T]): Seq[T] =
     filters.map(f => app.classloader.loadClass(f).newInstance().asInstanceOf[T])
 
 
+  /**
+   *
+   */
   private def loadTemplateResolver(conf: Option[String]): TemplateResolver =
     conf.map(app.classloader.loadClass(_).newInstance()
       .asInstanceOf[TemplateResolver]).getOrElse(new DefaultTemplateResolver)
 
 
-  private def parseRoute(path: String): Route = {
+  /**
+   *
+   */
+  private def parseRoute(path: String): Route =
     RoutesCompiler.parse(path) match {
       case Right(r: Route) => r
       case Right(unexpected) =>
@@ -86,19 +101,21 @@ class StubPlugin(app: Application) extends Plugin {
       case Left(err) =>
         throw new RuntimeException(err)
     }
-  }
 
 
-  private def toTemplate(inner: Configuration): Option[Template] =
-    if (inner.subKeys.contains("template")) {
+  /**
+   *
+   */
+  private def toTemplate(c: Configuration): Option[Template] =
+    if (c.subKeys.contains("template")) {
       val path =
-        if (inner.keys.contains("template.path"))
-          inner.getString("template.path").get
+        if (c.keys.contains("template.path"))
+          c.getString("template.path").get
         else
-          inner.getString("template").get
+          c.getString("template").get
       val engine =
-        if (inner.keys.contains("template.engine"))
-          inner.getString("template.engine").get
+        if (c.keys.contains("template.engine"))
+          c.getString("template.engine").get
         else
           engineConf
 
@@ -108,10 +125,11 @@ class StubPlugin(app: Application) extends Plugin {
       None
 
 
+  /**
+   *
+   */
   private def toMap(conf: Option[Configuration]): Map[String, String] =
     conf.map(_.entrySet
       .map(e => e._1 -> e._2.render()))
       .getOrElse(Map.empty).toMap
 }
-
-

@@ -1,55 +1,64 @@
 package jp.co.bizreach.play2stub
 
+import java.io.File
+
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.{ObjectMapper, JsonNode}
 import jp.co.bizreach.play2stub.RoutesCompiler.Route
 import org.apache.commons.io.{FilenameUtils, FileUtils}
 import play.api.Play._
-import play.api.mvc.{Request, AnyContent, RequestHeader, Result}
+import play.api.mvc.{Request, AnyContent, RequestHeader}
 import play.core.Router.RouteParams
 
 object Stub {
 
-  //  def template(params:Map[String, String]) = {}
+  def beforeFilters: Seq[BeforeFilter] = holder.beforeFilters
+  def afterFilters: Seq[AfterFilter] = holder.afterFilters
+  def templateResolver: TemplateResolver = holder.templateResolver
 
-  def addHeaders(result:Result):Result = {
-    result.withHeaders("Content-Type" -> "application/json")
-  }
-
-  def beforeFilters: Seq[BeforeFilter] = config.beforeFilters
-  def afterFilters: Seq[AfterFilter] = config.afterFilters
-  def templateResolver: TemplateResolver = config.templateResolver
 
   /**
    *
-   *
    */
-  def route(request: RequestHeader):Option[StubRoute] =
-    config.routes
-      .find(conf => conf.route.verb.value == request.method
-      && conf.route.path(request.path).isDefined)
+  def route(request: RequestHeader): Option[StubRoute] =
+    holder.routes
+      .find(conf =>
+        conf.route.verb.value == request.method &&
+          conf.route.path(request.path).isDefined)
       .map { conf =>
-      conf.route.path(request.path).map { groups =>
-        StubRoute(
-          conf = conf,
-          params = RouteParams(groups, request.queryString),
-          path = request.path)
+        conf.route.path(request.path).map { groups =>
+          StubRoute(
+            conf = conf,
+            params = RouteParams(groups, request.queryString),
+            path = request.path)
       }.get
     }
   //.map(r => RouteParams(r.path, request.queryString))
 
 
+  /**
+   *
+   */
   def exists(t: Template): Boolean =
     pathWithExtension(t.path, t.engine, isData = false).exists
-
 
 
   /**
    * Read json data file and merge parameters into the json
    */
-  def json(path:String, origParams:Map[String, String] = Map.empty,
-           extraParams:Map[String, String] = Map.empty):Option[JsonNode] = {
-    val params = origParams ++ extraParams
+  def json(route: StubRoute, extraParams:Map[String, String] = Map.empty):Option[JsonNode] =
+    json(route.dataPath, route.flatParams ++ extraParams)
+
+  /**
+   * Read json data file and merge parameters into the json
+   */
+  def json(path:String): Option[JsonNode] =
+    json(path, Map[String, String]())
+
+  /**
+   * Read json data file and merge parameters into the json
+   */
+  def json(path:String, params: Map[String, String]): Option[JsonNode] = {
     val jsonFile = pathWithExtension(path, "json", params)
 
     if (jsonFile.exists()) {
@@ -74,7 +83,7 @@ object Stub {
   /**
    * Read static html file
    */
-  def html(path:String):Option[String] = {
+  def html(path:String): Option[String] = {
     val htmlFile = pathWithExtension(path, "html", isData = false)
 
     if (htmlFile.exists())
@@ -85,30 +94,32 @@ object Stub {
 
 
   // TODO check if the path start with http(s)://
-  def proxyUrl(proxyPath:Option[String]):Option[String] =
-    (config.proxyRoot, config.isProxyEnabled) match {
+  def proxyUrl(proxyPath: Option[String]): Option[String] =
+    (holder.proxyRoot, holder.isProxyEnabled) match {
       case (Some(root), true) => proxyPath.map(root + _)
       case (None, true) => proxyPath
       case (_, false) => None
     }
 
 
-  private[play2stub] def config = current.plugin[StubPlugin].map(_.holder)
+  private[play2stub] lazy val holder = current.plugin[StubPlugin].map(_.holder)
     .getOrElse(throw new IllegalStateException("StubPlugin is not installed"))
 
 
   private[play2stub] def pathWithExtension(
-                                            path: String, ext: String, params: Map[String, String] = Map.empty, isData: Boolean = true) = {
+    path: String, extension: String,
+    params: Map[String, String] = Map.empty, isData: Boolean = true): File = {
+
     val rootDir =
-      if (isData) Stub.config.dataRoot
-      else Stub.config.viewRoot
+      if (isData) holder.dataRoot
+      else holder.viewRoot
 
     val filledPath = params.foldLeft(path){ (filled, param) =>
       filled.replace(":" + param._1, param._2)
     }
 
     val pathWithExt =
-      if (FilenameUtils.getExtension(filledPath).isEmpty) filledPath + "." + ext
+      if (FilenameUtils.getExtension(filledPath).isEmpty) filledPath + "." + extension
       else filledPath
 
     FileUtils.getFile(
@@ -147,12 +158,6 @@ case class StubRoute(
   def template(request: Request[AnyContent]): Option[Template] =
     Stub.templateResolver.resolve(request, this)
 
-
-  /**
-   * Read json data file and merge parameters into the json
-   */
-  def json(extraParams:Map[String, String] = Map.empty):Option[JsonNode] =
-    Stub.json(dataPath, flatParams, extraParams)
 
 }
 
