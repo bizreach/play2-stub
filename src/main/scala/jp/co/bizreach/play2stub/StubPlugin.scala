@@ -30,7 +30,7 @@ class StubPlugin(app: Application) extends Plugin {
   private def defaultRenderers =
     Seq(new HandlebarsRenderer)
   private def defaultProcessors =
-    Seq(new TemplateProcessor, new StaticHtmlProcessor, new JsonProcessor, new ProxyProcessor)
+    Seq(new ProxyProcessor, new TemplateProcessor, new StaticHtmlProcessor, new JsonProcessor)
   private def defaultParamBuilders =
     Seq(new PathAndQueryStringParamBuilder)
 

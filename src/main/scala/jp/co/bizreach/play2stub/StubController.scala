@@ -30,21 +30,34 @@ trait StubController extends Controller {
    */
   protected def process(path: String)(implicit firstReq: Request[AnyContent]): Future[Result] = {
 
-    val request =
-      Stub.beforeFilters.foldLeft(firstReq) { case (filteredReq, filter) =>
-        filter.process(filteredReq)
-      }
+    val request = processBeforeFilters(firstReq)
 
-    Stub.process.getOrElse(Future { NotFound }).map(firstRes =>
+    val result = processMain(request)
 
-      Stub.afterFilters.foldLeft(firstRes) { case (filteredRes, filter) =>
-        filter.process(request, filteredRes)
-      }
-    )
+    result.map(res => processAfterFilters(res)(request))
   }
 
 
-//  /**
+  protected def processBeforeFilters(implicit firstReq: Request[AnyContent]): Request[AnyContent] =
+    Stub.beforeFilters.foldLeft(firstReq) { case (filteredReq, filter) =>
+      filter.process(filteredReq)
+    }
+
+
+
+  protected def processMain(implicit request: Request[AnyContent]):Future[Result] =
+    Stub.process.getOrElse(Future { NotFound })
+
+
+
+
+  protected def processAfterFilters(result: Result)(implicit request: Request[AnyContent]) =
+    Stub.afterFilters.foldLeft(result) { case (filteredRes, filter) =>
+      filter.process(request, filteredRes)
+    }
+
+
+  //  /**
 //   * Main processing part.
 //   */
 //  protected def processMain(path: String)(implicit request: Request[AnyContent]): Future[Result] =

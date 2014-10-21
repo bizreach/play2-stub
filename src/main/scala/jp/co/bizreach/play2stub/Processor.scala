@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.Play.current
 import play.api.Logger
 import play.api.http.{MimeTypes, HeaderNames}
+import play.api.libs.json.Json
 import play.api.libs.ws.{WSResponse, WS}
 import play.api.mvc._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -17,6 +18,9 @@ trait Processor {
 
   def process(implicit request: Request[AnyContent],
              route:Option[StubRoute]): Option[Future[Result]]
+
+  def processSync(implicit request: Request[AnyContent],
+              route:Option[StubRoute]): Option[Result] = None
 }
 
 
@@ -26,16 +30,21 @@ trait Processor {
  * Currently, only string value is supported for extra parameters
  */
 class TemplateProcessor extends Results with Processor {
-  override def process(implicit request: Request[AnyContent],
+  def process(implicit request: Request[AnyContent],
                        route: Option[StubRoute]): Option[Future[Result]] = {
 
+    processSync.map(result => Future { result })
+
+  }
+
+
+  override def processSync(implicit request: Request[AnyContent],
+              route: Option[StubRoute]): Option[Result] = {
     val params = Stub.params.map{ case (k, v) => k -> v.toString }
 
     route
       .map(r => Stub.render(r.path, Some(r), Stub.json(r, params)))
       .getOrElse( Stub.render(request.path, None, Stub.json(request.path)))
-      .map(result => Future { result } )
-
   }
 }
 
@@ -86,12 +95,17 @@ class ProxyProcessor extends Controller with Processor {
       .withFollowRedirects(follow = false)
       .withHeaders(request.headers.toSimpleMap.toSeq: _*)
       .withQueryString(request.queryString.mapValues(_.headOption.getOrElse("")).toSeq: _*)
-      .withBody(request.body.asText.getOrElse(""))
+      .withBody(request.body.asJson.getOrElse(Json.obj())) // TODO accept other formats for file upload and others
       .withMethod(request.method)
 
     // Convert to Jackson node instead of Play.api.Json currently
-    def toJson(response: WSResponse) = new ObjectMapper().readTree(
-      response.underlying[com.ning.http.client.Response].getResponseBodyAsBytes)
+    def toJson(response: WSResponse) = {
+      if (response.underlying[com.ning.http.client.Response].hasResponseBody)
+        new ObjectMapper().readTree(
+          response.underlying[com.ning.http.client.Response].getResponseBodyAsBytes)
+      else
+        new ObjectMapper().createObjectNode()
+    }
 
     route.flatMap { r => r.proxyUrl map { url =>
 
@@ -99,6 +113,8 @@ class ProxyProcessor extends Controller with Processor {
         case Some(t) =>
           buildWS(url).execute().map { response =>
             Logger.debug(s"ROUTE: Proxy:$url, Template:${t.path}")
+            Logger.trace(s"ROUTE: Request Body:${request.body.asJson.getOrElse(Json.obj())}")
+            Logger.trace(s"ROUTE: Response Body:${response.body}")
 
             def resultAsIs() = Status(response.status)(response.body)
               .withHeaders(response.allHeaders.mapValues(_.headOption.getOrElse("")).toSeq: _*)
@@ -117,6 +133,7 @@ class ProxyProcessor extends Controller with Processor {
         case None =>
           buildWS(url).stream().map { case (response, body) =>
             Logger.debug(s"ROUTE: Proxy:$url, Stream")
+            Logger.trace(s"ROUTE: Request Body:${request.body.asJson.getOrElse(Json.obj())}")
 
             Status(response.status)
               .chunked(body)
