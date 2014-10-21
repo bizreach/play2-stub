@@ -3,13 +3,18 @@ package jp.co.bizreach.play2stub
 import jp.co.bizreach.play2handlebars.HBS
 import play.api.mvc.{Controller, Result, AnyContent, Request}
 
-
+/**
+ * Renderer generates some Result, usually with template files
+ *   When judging the request doesn't matter with it, return None.
+ */
 trait Renderer {
 
   def render(path: String, route: Option[StubRoute] = None, params: Option[Any] = None)
             (implicit request: Request[AnyContent]): Option[Result]
 
 }
+
+
 
 
 /**
@@ -40,19 +45,6 @@ class HandlebarsRenderer extends Controller with Renderer {
     else
       None
 
-//    route.map(r =>
-//      r.template(request) match {
-//        case Some(t) if t.engine == "hbs" && Stub.exists(t) =>
-//          Some(renderHbs(path, params))
-//        case _ =>
-//          None
-//      }
-//    ).getOrElse(
-//        if (Stub.exists(Template(path, "hbs")))
-//          Some(renderHbs(path, params))
-//        else
-//          None
-//      )
   }
 }
 
