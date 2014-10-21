@@ -66,8 +66,8 @@ class JsonProcessor extends Results with Processor {
                        route: Option[StubRoute]): Option[Future[Result]] = {
 
     route
-      .map(r => Stub.json(r).map(j => Future { Ok(j.toString)} ))
-      .getOrElse( Stub.json(request.path).map(j => Future { Ok(j.toString)} ))
+      .map(r => Stub.json(r, requireFile = true).map(j => Future { Ok(j.toString)} ))
+      .getOrElse( Stub.json(request.path, requireFile = true).map(j => Future { Ok(j.toString)} ))
   }
 }
 
@@ -81,7 +81,7 @@ class ProxyProcessor extends Controller with Processor {
   def process(implicit request: Request[AnyContent],
              route: Option[StubRoute]): Option[Future[Result]] = {
 
-    def buildHolder(url: String) = WS.url(url)
+    def buildWS(url: String) = WS.url(url)
       //.withRequestTimeout(10000)
       .withFollowRedirects(follow = false)
       .withHeaders(request.headers.toSimpleMap.toSeq: _*)
@@ -97,7 +97,7 @@ class ProxyProcessor extends Controller with Processor {
 
       r.template(request) match {
         case Some(t) =>
-          buildHolder(url).execute().map { response =>
+          buildWS(url).execute().map { response =>
             Logger.debug(s"ROUTE: Proxy:$url, Template:${t.path}")
 
             def resultAsIs() = Status(response.status)(response.body)
@@ -115,7 +115,7 @@ class ProxyProcessor extends Controller with Processor {
           }
 
         case None =>
-          buildHolder(url).stream().map { case (response, body) =>
+          buildWS(url).stream().map { case (response, body) =>
             Logger.debug(s"ROUTE: Proxy:$url, Stream")
 
             Status(response.status)

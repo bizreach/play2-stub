@@ -74,22 +74,51 @@ object Stub {
 
   /**
    * Read json data file and merge parameters into the json
+   *   To escape method overload issue, many json() methods are needed.
    */
-  def json(route: StubRoute, extraParams:Map[String, String] = Map.empty):Option[JsonNode] =
-    json(route.dataPath, route.flatParams ++ extraParams)
+  def json(route: StubRoute):Option[JsonNode] =
+    makeJson(route.dataPath: String, route.flatParams, requireFile = false)
+
+
+  /**
+   * Read json data file and merge parameters into the json
+   */
+  def json(route: StubRoute, extraParams:Map[String, String]):Option[JsonNode] =
+    makeJson(route.dataPath, route.flatParams ++ extraParams, requireFile = false)
+
+
+  /**
+   * Read json data file and merge parameters into the json
+   */
+  def json(route: StubRoute, requireFile: Boolean):Option[JsonNode] =
+    makeJson(route.dataPath: String, route.flatParams, requireFile)
+
+
+  /**
+   * Read json data file and merge parameters into the json
+   */
+  def json(route: StubRoute, extraParams:Map[String, String], requireFile: Boolean):Option[JsonNode] =
+    makeJson(route.dataPath, route.flatParams ++ extraParams, requireFile)
 
 
   /**
    * Read json data file and merge parameters into the json
    */
   def json(path:String): Option[JsonNode] =
-    json(path, Map[String, String]())
+    makeJson(path, Map[String, String](), requireFile = false)
 
 
   /**
    * Read json data file and merge parameters into the json
    */
-  def json(path:String, params: Map[String, String]): Option[JsonNode] = {
+  def json(path:String, requireFile: Boolean = false): Option[JsonNode] =
+    makeJson(path, Map[String, String](), requireFile)
+
+
+  /**
+   * Read json data file and merge parameters into the json
+   */
+  private def makeJson(path:String, params: Map[String, String], requireFile: Boolean): Option[JsonNode] = {
     val jsonFile = pathWithExtension(path, "json", params)
 
     if (jsonFile.exists()) {
@@ -101,7 +130,7 @@ object Stub {
       }
       Some(json)
 
-    } else if (params.nonEmpty) {
+    } else if (!requireFile && params.nonEmpty) {
       val node = new ObjectMapper().createObjectNode()
       params.foreach{ case (k, v) => node.put(k, v) }
       Some(node)
@@ -125,12 +154,14 @@ object Stub {
 
 
   // TODO check if the path start with http(s)://
-  def proxyUrl(proxyPath: Option[String]): Option[String] =
-    (holder.proxyRoot, holder.isProxyEnabled) match {
+  def proxyUrl(proxyPath: Option[String], params: Map[String, String]): Option[String] =
+    ((holder.proxyRoot, holder.isProxyEnabled) match {
       case (Some(root), true) => proxyPath.map(root + _)
       case (None, true) => proxyPath
       case (_, false) => None
-    }
+    }).map(path => params.foldLeft(path){ (filled, param) =>
+      filled.replace(":" + param._1, param._2)
+    })
 
 
   private[play2stub] lazy val holder = current.plugin[StubPlugin].map(_.holder)
@@ -168,13 +199,13 @@ case class StubRoute(
   def verb = conf.route.verb
   def pathPattern = conf.route.path
   def dataPath = conf.data.getOrElse(path)
-  def proxyUrl = Stub.proxyUrl(conf.proxy)
+  def proxyUrl = Stub.proxyUrl(conf.proxy, flatParams)
 
 
   /**
    * Get parameter maps from both url path part and query string part
    */
-  def flatParams: Map[String, String] = {
+  lazy val flatParams: Map[String, String] = {
     val fromPath = params.path
       .withFilter(_._2.isRight).map(p => p._1 -> p._2.right.get)
     val fromQuery = params.queryString
