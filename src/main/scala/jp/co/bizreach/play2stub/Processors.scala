@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.Play.current
 import play.api.Logger
 import play.api.http.{MimeTypes, HeaderNames}
+import play.api.libs.iteratee.Enumerator
 import play.api.libs.json.Json
 import play.api.libs.ws.{WSResponse, WS}
 import play.api.mvc._
@@ -118,12 +119,10 @@ class ProxyProcessor
   private[play2stub] def wsThenImmediateResponse(url: String, r: StubRoute, t: Template)
                         (implicit request: Request[AnyContent]): Future[Result] =
     buildWS(url).execute().map { response =>
-      log.debug(s"ROUTE: Proxy:$url, Template:${t.path}")
+      log.debug(s"ROUTE: Proxy:$url, with template:${t.path}")
       log.trace(s"ROUTE: Request Body:${request.body.asJson.getOrElse(Json.obj())}")
       log.trace(s"ROUTE: Response Body:${response.body}")
 
-      def resultAsIs() = Status(response.status)(response.body)
-        .withHeaders(response.allHeaders.mapValues(_.headOption.getOrElse("")).toSeq: _*)
 
       if (response.status < 300)
         Stub.render(t.path, None, Some(r.flatParams ++ Stub.params + ("res" -> toJson(response))))
@@ -132,12 +131,16 @@ class ProxyProcessor
                           HeaderNames.CONTENT_LENGTH - HeaderNames.CONTENT_TYPE).toSeq: _*)
             .withHeaders(HeaderNames.CONTENT_TYPE -> MimeTypes.HTML))
           .getOrElse(
-            resultAsIs()
+            resultAsIs(response)
           )
 
       else
-        resultAsIs()
+        resultAsIs(response)
     }
+
+
+  def resultAsIs(response:WSResponse) = Status(response.status)(response.body)
+    .withHeaders(response.allHeaders.mapValues(_.headOption.getOrElse("")).toSeq: _*)
 
 
   /**
@@ -146,22 +149,28 @@ class ProxyProcessor
   private[play2stub] def wsThenStreamResponse(url: String)
                          (implicit request: Request[AnyContent]): Future[Result] =
     
-    buildWS(url).stream().map { case (response, body) =>
-      log.debug(s"ROUTE: Proxy:$url, Stream")
+//    buildWS(url).stream().map { case (response, body) =>
+//      log.debug(s"ROUTE: Proxy:$url, Stream")
+//      log.trace(s"ROUTE: Request Body:${request.body.asJson.getOrElse(Json.obj())}")
+//
+//      Status(response.status)
+//        .chunked(body)
+//        .withHeaders(response.headers.mapValues(_.headOption.getOrElse("")).toSeq: _*)
+//    }
+
+    buildWS(url).execute().map { response =>
+      log.debug(s"ROUTE: Proxy:$url, without template")
       log.trace(s"ROUTE: Request Body:${request.body.asJson.getOrElse(Json.obj())}")
+      log.trace(s"ROUTE: Response Body:${response.body}")
 
-      Status(response.status)
-        .chunked(body)
-        .withHeaders(response.headers.mapValues(_.headOption.getOrElse("")).toSeq: _*)
+      resultAsIs(response)
     }
-
 
   /**
    * Build web client using WS 
    */
   private[play2stub] def buildWS(url: String)(implicit request: Request[AnyContent]) =
     WS.url(url)
-      //.withRequestTimeout(10000)
       .withFollowRedirects(follow = false)
       .withHeaders(request.headers.toSimpleMap.toSeq: _*)
       .withQueryString(request.queryString.mapValues(_.headOption.getOrElse("")).toSeq: _*)
