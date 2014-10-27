@@ -1,8 +1,11 @@
 package jp.co.bizreach.play2stub
 
+import java.net.URL
+
 import jp.co.bizreach.play2stub.RoutesCompiler.Route
+import org.apache.commons.io.FileUtils
 import play.api.Play._
-import play.api.{Configuration, Logger, Application, Plugin}
+import play.api._
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
@@ -26,6 +29,7 @@ class StubPlugin(app: Application) extends Plugin {
   val processorList = app.configuration.getStringSeq(basePath + ".processors")
   val paramBuilderList = app.configuration.getStringSeq(basePath + ".param-builders")
   val templateResolverConf = app.configuration.getString(basePath + ".template-resolver")
+  val loadClassPathConf = app.configuration.getBoolean(basePath + ".loadClassPath").getOrElse(Play.isProd(current))
 
   private def defaultRenderers =
     Seq(new HandlebarsRenderer)
@@ -47,6 +51,7 @@ class StubPlugin(app: Application) extends Plugin {
     val processors: Seq[Processor] = processorList.map(loadFilters[Processor]).getOrElse(defaultProcessors)
     val paramBuilders: Seq[ParamBuilder] = paramBuilderList.map(loadFilters[ParamBuilder]).getOrElse(defaultParamBuilders)
     val templateResolver: TemplateResolver = loadTemplateResolver(templateResolverConf)
+    val fileLoader: FileLoader = new FileLoader(dataRootConf, viewRootConf, loadClassPathConf)
   }
 
 
@@ -145,4 +150,30 @@ class StubPlugin(app: Application) extends Plugin {
     conf.map(_.entrySet
       .map(e => e._1 -> e._2.render()))
       .getOrElse(Map.empty).toMap
+}
+
+
+class FileLoader(
+  dataRoot: String, viewRoot: String, loadClassPath: Boolean) {
+
+  def load(pathWithExt: String, isData: Boolean = false): Option[URL] =
+    if (loadClassPath)
+      loadByClassPath(pathWithExt)
+    else
+      loadByFilePath(pathWithExt, isData)
+
+  def loadByClassPath(pathWithExt: String): Option[URL] =
+    Option(getClass.getResource(pathWithExt))
+
+  def loadByFilePath(pathWithExt: String, isData: Boolean): Option[URL] = {
+    val file = FileUtils.getFile(
+      System.getProperty("user.dir"), rootDir(isData), pathWithExt)
+    if (file.exists())
+      Some(file.toURI.toURL)
+    else
+      None
+  }
+
+  def rootDir(isData: Boolean): String =
+    if (isData) dataRoot else viewRoot
 }

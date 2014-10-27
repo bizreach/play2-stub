@@ -1,6 +1,7 @@
 package jp.co.bizreach.play2stub
 
 import java.io.File
+import java.net.{URL, URI}
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.{ObjectMapper, JsonNode}
@@ -69,7 +70,7 @@ object Stub {
    *
    */
   def exists(t: Template): Boolean =
-    pathWithExtension(t.path, t.engine, isData = false).exists
+    pathWithExtension(t.path, t.engine, isData = false).isDefined
 
 
   /**
@@ -121,8 +122,9 @@ object Stub {
   private def makeJson(path:String, params: Map[String, String], requireFile: Boolean): Option[JsonNode] = {
     val jsonFile = pathWithExtension(path, "json", params)
 
-    if (jsonFile.exists()) {
-      val json = new ObjectMapper().readTree(FileUtils.readFileToString(jsonFile, "UTF-8"))
+    if (jsonFile.isDefined) {
+      val json = new ObjectMapper().readTree(
+        FileUtils.readFileToString(new File(jsonFile.get.toURI), "UTF-8"))
       json match {
         case node: ObjectNode =>
           params.foreach { case (k, v) => node.put(k, v)}
@@ -144,12 +146,8 @@ object Stub {
    * Read static html file
    */
   def html(path:String): Option[String] = {
-    val htmlFile = pathWithExtension(path, "html", isData = false)
-
-    if (htmlFile.exists())
-      Some(FileUtils.readFileToString(htmlFile, "UTF-8"))
-    else
-      None
+    pathWithExtension(path, "html", isData = false)
+      .map(url => FileUtils.readFileToString(new File(url.toURI), "UTF-8"))
   }
 
 
@@ -170,11 +168,7 @@ object Stub {
 
   private[play2stub] def pathWithExtension(
     path: String, extension: String,
-    params: Map[String, String] = Map.empty, isData: Boolean = true): File = {
-
-    val rootDir =
-      if (isData) holder.dataRoot
-      else holder.viewRoot
+    params: Map[String, String] = Map.empty, isData: Boolean = true): Option[URL] = {
 
     val filledPath = params.foldLeft(path){ (filled, param) =>
       filled.replace(":" + param._1, param._2)
@@ -184,9 +178,7 @@ object Stub {
       if (FilenameUtils.getExtension(filledPath).isEmpty) filledPath + "." + extension
       else filledPath
 
-    FileUtils.getFile(
-      System.getProperty("user.dir"),
-      rootDir, pathWithExt)
+    holder.fileLoader.load(pathWithExt, isData)
   }
 }
 
