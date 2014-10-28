@@ -158,12 +158,12 @@ class FileLoader(
 
   def load(pathWithExt: String, isData: Boolean = false): Option[URL] =
     if (loadClassPath)
-      loadByClassPath(pathWithExt)
+      loadByClassPath(pathWithExt, isData)
     else
       loadByFilePath(pathWithExt, isData)
 
-  def loadByClassPath(pathWithExt: String): Option[URL] =
-    Option(getClass.getResource(pathWithExt))
+  def loadByClassPath(pathWithExt: String, isData: Boolean): Option[URL] =
+    Option(getClass.getResource(concat(rootDir(isData), pathWithExt)))
 
   def loadByFilePath(pathWithExt: String, isData: Boolean): Option[URL] = {
     val file = FileUtils.getFile(
@@ -176,4 +176,9 @@ class FileLoader(
 
   def rootDir(isData: Boolean): String =
     if (isData) dataRoot else viewRoot
+
+  def concat(path1: String, path2 :String): String =
+    (if (path1.endsWith("/")) path1 else path1 + "/") +
+      (if (path2.startsWith("/")) path2.substring(1) else path2)
+
 }
