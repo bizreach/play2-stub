@@ -6,7 +6,7 @@ import play.api.Logger
 import play.api.http.{MimeTypes, HeaderNames}
 import play.api.libs.iteratee.Enumerator
 import play.api.libs.json.Json
-import play.api.libs.ws.{WSResponse, WS}
+import play.api.libs.ws.{WSCookie, WSResponse, WS}
 import play.api.mvc._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -127,10 +127,11 @@ class ProxyProcessor
       if (response.status < 300)
         Stub.render(t.path, None, Some(r.flatParams ++ Stub.params + ("res" -> toJson(response))))
           .map(_
-            .withHeaders((response.allHeaders.mapValues(_.headOption.getOrElse("")) -
-                          HeaderNames.CONTENT_LENGTH - HeaderNames.CONTENT_TYPE).toSeq: _*)
-            .withHeaders(HeaderNames.CONTENT_TYPE -> MimeTypes.HTML))
-          .getOrElse(
+            .withHeaders(deNormalizedHeaders(response.allHeaders -
+                         HeaderNames.CONTENT_LENGTH - HeaderNames.CONTENT_TYPE - HeaderNames.SET_COOKIE):_*)
+            .withHeaders(HeaderNames.CONTENT_TYPE -> MimeTypes.HTML)
+            .withCookies(convertCookies(response.cookies):_*)
+          ).getOrElse(
             resultAsIs(response)
           )
 
@@ -139,8 +140,34 @@ class ProxyProcessor
     }
 
 
+  /**
+   * Return all body and headers as is
+   */
   def resultAsIs(response:WSResponse) = Status(response.status)(response.body)
-    .withHeaders(response.allHeaders.mapValues(_.headOption.getOrElse("")).toSeq: _*)
+    .withHeaders(deNormalizedHeaders(response.allHeaders - HeaderNames.SET_COOKIE):_*)
+    .withCookies(convertCookies(response.cookies):_*)
+
+
+  /**
+   * Denormalize headers especially for Set-Cookie header
+   */
+  def deNormalizedHeaders(headers:Map[String, Seq[String]]): Seq[(String, String)] =
+    headers.toSeq.flatMap {case (key, values) => values.map(value => (key, value)) }
+
+
+  /**
+   * Convert WSCookie to Cookie
+   *   Cookie domain should be removed (TODO set cookie domain from configuration, TODO http only settings)
+   */
+  def convertCookies(cookies:Seq[WSCookie]): Seq[Cookie] =
+    cookies.map(ws => Cookie(
+      name = ws.name.getOrElse(""),
+      value = ws.value.getOrElse(""),
+      maxAge = ws.maxAge,
+      path = ws.path,
+      domain = None, //Some(ws.domain),
+      secure = ws.secure,
+      httpOnly = true))
 
 
   /**
