@@ -192,6 +192,7 @@ case class StubRoute(
   def pathPattern = conf.route.path
   def dataPath = conf.data.getOrElse(path)
   def proxyUrl = Stub.proxyUrl(conf.proxy, flatParams)
+  def redirectUrl = conf.redirect
 
 
   /**
@@ -229,6 +230,7 @@ case class StubRouteConfig(
   route: Route,
   template: Option[Template] = None,
   proxy: Option[String] = None,
+  redirect: Option[String] = None,
   data: Option[String] = None,
   status: Option[Int] = None,
   noResponse: Boolean = false,

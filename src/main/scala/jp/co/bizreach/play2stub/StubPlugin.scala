@@ -24,7 +24,7 @@ class StubPlugin(app: Application) extends Plugin {
   val proxyRootConf = app.configuration.getString(basePath + ".proxy-root")
   val enableProxyConf = app.configuration.getBoolean(basePath + ".enable-proxy")
   val beforePluginList = app.configuration.getStringSeq(basePath + ".filters.before").getOrElse(Seq.empty)
-  val afterPluginList = app.configuration.getStringSeq(basePath + ".filters.after").getOrElse(Seq.empty)
+  val afterPluginList = app.configuration.getStringSeq(basePath + ".filters.after")
   val rendererList = app.configuration.getStringSeq(basePath + ".renderers")
   val processorList = app.configuration.getStringSeq(basePath + ".processors")
   val paramBuilderList = app.configuration.getStringSeq(basePath + ".param-builders")
@@ -37,6 +37,8 @@ class StubPlugin(app: Application) extends Plugin {
     Seq(new ProxyProcessor, new TemplateProcessor, new StaticHtmlProcessor, new JsonProcessor)
   private def defaultParamBuilders =
     Seq(new PathAndQueryStringParamBuilder)
+  private def defaultAfterFilters =
+    Seq(new RedirectFilter)
 
   trait RouteHolder {
     val routes: Seq[StubRouteConfig]
@@ -46,7 +48,7 @@ class StubPlugin(app: Application) extends Plugin {
     val proxyRoot: Option[String] =proxyRootConf
     val isProxyEnabled: Boolean = enableProxyConf.getOrElse(false)
     val beforeFilters: Seq[BeforeFilter] = loadFilters[BeforeFilter](beforePluginList)
-    val afterFilters: Seq[AfterFilter] = loadFilters[AfterFilter](afterPluginList)
+    val afterFilters: Seq[AfterFilter] = afterPluginList.map(loadFilters[AfterFilter]).getOrElse(defaultAfterFilters)
     val renderers: Seq[Renderer] = rendererList.map(loadFilters[Renderer]).getOrElse(defaultRenderers)
     val processors: Seq[Processor] = processorList.map(loadFilters[Processor]).getOrElse(defaultProcessors)
     val paramBuilders: Seq[ParamBuilder] = paramBuilderList.map(loadFilters[ParamBuilder]).getOrElse(defaultParamBuilders)
@@ -70,8 +72,9 @@ class StubPlugin(app: Application) extends Plugin {
       route.getConfig(path).map { inner =>
         StubRouteConfig(
           route = parseRoute(path.replace("~", ":")),
-          proxy = inner.getString("proxy"),
           template = toTemplate(inner),
+          proxy = inner.getString("proxy"),
+          redirect = inner.getString("redirect"),
           data = inner.getString("data"),
           status = inner.getInt("status"),
           noResponse = inner.getBoolean("noResponse").getOrElse(false),
