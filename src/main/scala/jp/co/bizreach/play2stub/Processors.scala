@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.Play.current
 import play.api.Logger
 import play.api.http.{MimeTypes, HeaderNames}
-import play.api.libs.iteratee.Enumerator
 import play.api.libs.json.Json
 import play.api.libs.ws.{WSCookie, WSResponse, WS}
 import play.api.mvc._
@@ -129,7 +128,7 @@ class ProxyProcessor
           .map(_
             .withHeaders(deNormalizedHeaders(response.allHeaders -
                          HeaderNames.CONTENT_LENGTH - HeaderNames.CONTENT_TYPE - HeaderNames.SET_COOKIE):_*)
-            .withHeaders(HeaderNames.CONTENT_TYPE -> MimeTypes.HTML)
+            .withHeaders(HeaderNames.CONTENT_TYPE -> HTML)
             .withCookies(convertCookies(response.cookies):_*)
           ).getOrElse(
             resultAsIs(response)
@@ -149,7 +148,7 @@ class ProxyProcessor
 
 
   /**
-   * Denormalize headers especially for Set-Cookie header
+   * De-normalize headers especially for Set-Cookie header
    */
   def deNormalizedHeaders(headers:Map[String, Seq[String]]): Seq[(String, String)] =
     headers.toSeq.flatMap {case (key, values) => values.map(value => (key, value)) }
@@ -201,7 +200,8 @@ class ProxyProcessor
       .withFollowRedirects(follow = false)
       .withHeaders(request.headers.toSimpleMap.toSeq: _*)
       .withQueryString(request.queryString.mapValues(_.headOption.getOrElse("")).toSeq: _*)
-      .withBody(request.body.asJson.getOrElse(Json.obj())) // TODO accept other formats for file upload and others
+      // TODO accept other formats for file upload and others
+      .withBody(request.body.asJson.getOrElse(Json.obj()))
       .withMethod(request.method)
 
 
