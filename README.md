@@ -34,9 +34,13 @@ UX/UI designers/engineers also want data variation as we engineers do, to test c
 
 Features
 =====
-- Handlebars(currently) template 
 - Dynamic parameter passing
 - Implicit routing
+- Pluggable Processor ...
+- Pluggable Filter ...
+- Pluggable Template Resolver ...
+- Pluggable Param Injector ...
+- Pluggable Renderer ...
 
 
 Getting Started
@@ -54,7 +58,7 @@ Getting Started
       "Maven Central Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
 
-2. Add a line in `conf/play.plugins`. Usually, you also need to add Handlebars plugin declaration.
+2. Add a line in `conf/play.plugins`. Usually, add Handlebars plugin declaration also currently.
 
     1000:jp.co.bizreach.play2handlebars.HandlebarsPlugin
     2000:jp.co.bizreach.play2stub.StubPlugin
@@ -62,9 +66,12 @@ Getting Started
 3. Add mappings to StubController routes in `routes`. Each http method needs a line. 
  
     GET     /*file         jp.co.bizreach.play2stub.StubController.at(file)
+    POST    /*file         jp.co.bizreach.play2stub.StubController.at(file)
+    PUT     /*file         jp.co.bizreach.play2stub.StubController.at(file)
+    DELETE  /*file         jp.co.bizreach.play2stub.StubController.at(file)
 
 
-4. Add routes in `application.conf`. The grammar is quite similar to that of Play's route. But instead of ":", use "~" for path parameters.
+4. Add routes in `application.conf`. The grammar is quite similar to that of Play's route. (But instead of ":", use "~" for path parameters currently).
 
     play2stub {
       routes: [
@@ -80,16 +87,6 @@ Getting Started
 
 5. Then put template files or/and json files and run your application.
  
-6. See `src/test/play2-sample1-stub` for more routing samples.
+6. See [src/test/play2-sample1-stub](https://github.com/bizreach/play2-stub/tree/master/src/test/play2-sample1-stub) for more routing samples.
 
 
-Roadmap
-=====
-0.2
-#1 add common headers and cookie values using filter
-#2 enable no returning value
-#3
-
-0.3 and beyond
-- Some kind of collaboration with REST documentation frameworks such as Blueprint and RAML
-- 
