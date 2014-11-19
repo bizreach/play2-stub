@@ -30,6 +30,8 @@ class StubPlugin(app: Application) extends Plugin {
   val paramBuilderList = app.configuration.getStringSeq(basePath + ".param-builders")
   val templateResolverConf = app.configuration.getString(basePath + ".template-resolver")
   val loadClassPathConf = app.configuration.getBoolean(basePath + ".loadClassPath").getOrElse(Play.isProd(current))
+  val parameterSymbol = app.configuration.getString(basePath + ".syntax.parameter").getOrElse("~")
+  val wildcardSymbol = app.configuration.getString(basePath + ".syntax.wildcard").getOrElse("~~")
 
   private def defaultRenderers =
     Seq(new HandlebarsRenderer)
@@ -71,7 +73,7 @@ class StubPlugin(app: Application) extends Plugin {
 
       route.getConfig(path).map { inner =>
         StubRouteConfig(
-          route = parseRoute(path.replace("~", ":")),
+          route = parseRoute(inner.getString("path").getOrElse(path).replace(wildcardSymbol, "*").replace(parameterSymbol, ":")),
           template = toTemplate(inner),
           proxy = inner.getString("proxy"),
           redirect = inner.getString("redirect"),
