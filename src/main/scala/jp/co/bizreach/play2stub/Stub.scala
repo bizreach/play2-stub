@@ -10,6 +10,7 @@ import org.apache.commons.io.{FilenameUtils, FileUtils}
 import play.api.Play._
 import play.api.mvc.{Result, Request, AnyContent, RequestHeader}
 import play.core.Router.RouteParams
+import play.utils.UriEncoding
 
 import scala.concurrent.Future
 
@@ -191,7 +192,7 @@ case class StubRoute(
   def verb = conf.route.verb
   def pathPattern = conf.route.path
   def dataPath = conf.data.getOrElse(path)
-  def proxyUrl = Stub.proxyUrl(conf.proxy, flatParams)
+  def proxyUrl = Stub.proxyUrl(conf.proxy, flatParamsEncoded)
   def redirectUrl = conf.redirect
 
 
@@ -203,6 +204,22 @@ case class StubRoute(
       .withFilter(_._2.isRight).map(p => p._1 -> p._2.right.get)
     val fromQuery = params.queryString
       .withFilter(_._2.length > 0).map(q => q._1 -> q._2(0))
+    fromPath ++ fromQuery
+  }
+
+  lazy val flatParamsEncoded: Map[String, String] = {
+    def isEncodeable(keyName: String): Boolean =
+      conf.route.path.parts.exists {
+        case DynamicPart(name, _, encodeable) => keyName == name && encodeable
+        case _=> false
+      }
+
+    val fromPath = params.path
+      .withFilter(_._2.isRight).map(p => p._1 ->
+        (if(isEncodeable(p._1)) UriEncoding.encodePathSegment(p._2.right.get, "UTF-8") else p._2.right.get))
+    val fromQuery = params.queryString
+      .withFilter(_._2.length > 0).map(q => q._1 -> UriEncoding.encodePathSegment(q._2(0), "UTF-8"))
+
     fromPath ++ fromQuery
   }
 

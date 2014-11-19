@@ -19,7 +19,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.play"  %% "play"                 % "2.3.4"    % "provided",
   "com.typesafe.play"  %% "play-ws"              % "2.3.4"    % "provided",
   "commons-io"          % "commons-io"           % "2.4",
-  "jp.co.bizreach"     %% "play2-handlebars"     % "0.2-SNAPSHOT",
+  "jp.co.bizreach"     %% "play2-handlebars"     % "0.2.0",
   "org.scalatest"      %% "scalatest"            % "2.2.1"    % "test",
   "org.mockito"         % "mockito-all"          % "1.9.5"    % "test",
   "com.typesafe.play"  %% "play-test"            % "2.3.3"    % "test"
