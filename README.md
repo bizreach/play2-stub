@@ -1,7 +1,7 @@
-Collaborate with front-end developers with no bottle necks!
+Proxy and Stub for Play2
 ================
 
-`play2-stub` is a play framework plugin for implementing server stub without any boilerplate coding. With   
+`play2-stub` is a play framework plugin for routing requests to another server or return test data
 
 `routes`
 
@@ -23,7 +23,7 @@ Collaborate with front-end developers with no bottle necks!
       ]
     }
     
-Currently, `play2-stub` only suppoorts Handlebars templates and depends on [play2-handlebars](https://github.com/bizreach/play2-handlebars) .
+Currently, `play2-stub` only supports Handlebars templates and depends on [play2-handlebars](https://github.com/bizreach/play2-handlebars) .
 
 Motivation
 =====
