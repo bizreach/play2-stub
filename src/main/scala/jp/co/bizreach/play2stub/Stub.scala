@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.{ObjectMapper, JsonNode}
 import jp.co.bizreach.play2stub.RoutesCompiler.Route
 import org.apache.commons.io.{FilenameUtils, FileUtils}
 import play.api.Play._
+import play.api.libs.ws.WSResponse
 import play.api.mvc.{Result, Request, AnyContent, RequestHeader}
 import play.core.Router.RouteParams
 import play.utils.UriEncoding
@@ -60,10 +61,10 @@ object Stub {
     }
   }
 
-  def params(implicit request: Request[AnyContent]): Map[String, Any] = {
+  def params(response: Option[WSResponse] = None)(implicit request: Request[AnyContent]): Map[String, Any] = {
     implicit val route = Stub.route(request)
     holder.paramBuilders.foldLeft(Map[String, Any]()){ case (map, builder) =>
-      map ++ builder.build
+      map ++ builder.build(response)
     }
   }
 

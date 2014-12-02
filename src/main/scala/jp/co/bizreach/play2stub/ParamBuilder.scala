@@ -1,5 +1,6 @@
 package jp.co.bizreach.play2stub
 
+import play.api.libs.ws.WSResponse
 import play.api.mvc.{AnyContent, Request}
 
 
@@ -8,13 +9,13 @@ import play.api.mvc.{AnyContent, Request}
  */
 trait ParamBuilder {
 
-  def build(implicit request: Request[AnyContent],
+  def build(response: Option[WSResponse])(implicit request: Request[AnyContent],
             route: Option[StubRoute]): Map[String, Any]
 }
 
 
 class PathAndQueryStringParamBuilder extends ParamBuilder {
-  def build(implicit request: Request[AnyContent],
+  def build(response: Option[WSResponse])(implicit request: Request[AnyContent],
             route: Option[StubRoute]): Map[String, Any] =
     Map("rawQueryString" -> request.rawQueryString, "path" -> request.path)
 }

@@ -44,7 +44,7 @@ class TemplateProcessor extends Results with Processor {
 
   override def processSync(implicit request: Request[AnyContent],
               route: Option[StubRoute]): Option[Result] = {
-    val params = Stub.params.map{ case (k, v) => k -> v.toString }
+    val params = Stub.params().map{ case (k, v) => k -> v.toString }
 
     route
       .map(r => Stub.render(r.path, Some(r), Stub.json(r, params)))
@@ -124,7 +124,7 @@ class ProxyProcessor
 
 
       if (response.status < 300)
-        Stub.render(t.path, None, Some(r.flatParams ++ Stub.params + ("res" -> toJson(response))))
+        Stub.render(t.path, None, Some(r.flatParams ++ Stub.params(Some(response)) + ("res" -> toJson(response))))
           .map(_
             .withHeaders(deNormalizedHeaders(response.allHeaders -
                          HeaderNames.CONTENT_LENGTH - HeaderNames.CONTENT_TYPE - HeaderNames.SET_COOKIE):_*)
