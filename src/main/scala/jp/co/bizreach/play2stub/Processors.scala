@@ -115,7 +115,7 @@ class ProxyProcessor
    * Return rendered html text when template is defined
    *   as long as the response status is normal
    */
-  private[play2stub] def wsThenImmediateResponse(url: String, r: StubRoute, t: Template)
+  protected def wsThenImmediateResponse(url: String, r: StubRoute, t: Template)
                         (implicit request: Request[AnyContent]): Future[Result] =
     buildWS(url).execute().map { response =>
       log.debug(s"ROUTE: Proxy:$url, with template:${t.path}")
@@ -142,7 +142,7 @@ class ProxyProcessor
   /**
    * Return all body and headers as is
    */
-  def resultAsIs(response:WSResponse) = Status(response.status)(response.body)
+  protected def resultAsIs(response:WSResponse) = Status(response.status)(response.body)
     .withHeaders(deNormalizedHeaders(response.allHeaders - HeaderNames.SET_COOKIE):_*)
     .withCookies(convertCookies(response.cookies):_*)
 
@@ -150,7 +150,7 @@ class ProxyProcessor
   /**
    * De-normalize headers especially for Set-Cookie header
    */
-  def deNormalizedHeaders(headers:Map[String, Seq[String]]): Seq[(String, String)] =
+  protected def deNormalizedHeaders(headers:Map[String, Seq[String]]): Seq[(String, String)] =
     headers.toSeq.flatMap {case (key, values) => values.map(value => (key, value)) }
 
 
@@ -158,7 +158,7 @@ class ProxyProcessor
    * Convert WSCookie to Cookie
    *   Cookie domain should be removed (TODO set cookie domain from configuration, TODO http only settings)
    */
-  def convertCookies(cookies:Seq[WSCookie]): Seq[Cookie] =
+  protected def convertCookies(cookies:Seq[WSCookie]): Seq[Cookie] =
     cookies.map(ws => Cookie(
       name = ws.name.getOrElse(""),
       value = ws.value.getOrElse(""),
@@ -172,7 +172,7 @@ class ProxyProcessor
   /**
    * Return streaming result when template is not defined
    */
-  private[play2stub] def wsThenStreamResponse(url: String)
+  protected def wsThenStreamResponse(url: String)
                          (implicit request: Request[AnyContent]): Future[Result] =
     
 //    buildWS(url).stream().map { case (response, body) =>
@@ -195,7 +195,7 @@ class ProxyProcessor
   /**
    * Build web client using WS 
    */
-  private[play2stub] def buildWS(url: String)(implicit request: Request[AnyContent]) =
+  protected def buildWS(url: String)(implicit request: Request[AnyContent]) =
     WS.url(url)
       .withFollowRedirects(follow = false)
       .withHeaders(request.headers.toSimpleMap.toSeq: _*)
@@ -210,7 +210,7 @@ class ProxyProcessor
    *   converted to Jackson node instead of JsValue currently
    *   because play2handlebars doesn't accept JsValue
    */
-  private[play2stub] def toJson(response: WSResponse) =
+  protected def toJson(response: WSResponse) =
     if (response.underlying[com.ning.http.client.Response].hasResponseBody)
       new ObjectMapper().readTree(
         response.underlying[com.ning.http.client.Response].getResponseBodyAsBytes)
