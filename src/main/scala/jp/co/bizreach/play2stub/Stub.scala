@@ -205,7 +205,7 @@ case class StubRoute(
       .withFilter(_._2.isRight).map(p => p._1 -> p._2.right.get)
     val fromQuery = params.queryString
       .withFilter(_._2.length > 0).map(q => q._1 -> q._2(0))
-    fromPath ++ fromQuery
+    fromPath ++ fromQuery ++ conf.params
   }
 
   lazy val flatParamsEncoded: Map[String, String] = {
