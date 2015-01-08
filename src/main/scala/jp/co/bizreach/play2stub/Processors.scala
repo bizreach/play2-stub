@@ -44,10 +44,8 @@ class TemplateProcessor extends Results with Processor {
 
   override def processSync(implicit request: Request[AnyContent],
               route: Option[StubRoute]): Option[Result] = {
-    val params = Stub.params().map{ case (k, v) => k -> v.toString }
-
     route
-      .map(r => Stub.render(r.path, Some(r), Stub.json(r, params)))
+      .map(r => Stub.render(r.path, Some(r), Stub.json(r, Stub.params())))
       .getOrElse( Stub.render(request.path, None, Stub.json(request.path)))
   }
 }

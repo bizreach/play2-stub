@@ -86,7 +86,7 @@ object Stub {
   /**
    * Read json data file and merge parameters into the json
    */
-  def json(route: StubRoute, extraParams:Map[String, String]):Option[JsonNode] =
+  def json(route: StubRoute, extraParams:Map[String, Any]):Option[JsonNode] =
     makeJson(route.dataPath, route.flatParams ++ extraParams, requireFile = false)
 
 
@@ -100,7 +100,7 @@ object Stub {
   /**
    * Read json data file and merge parameters into the json
    */
-  def json(route: StubRoute, extraParams:Map[String, String], requireFile: Boolean):Option[JsonNode] =
+  def json(route: StubRoute, extraParams:Map[String, Any], requireFile: Boolean):Option[JsonNode] =
     makeJson(route.dataPath, route.flatParams ++ extraParams, requireFile)
 
 
@@ -121,7 +121,7 @@ object Stub {
   /**
    * Read json data file and merge parameters into the json
    */
-  private def makeJson(path:String, params: Map[String, String], requireFile: Boolean): Option[JsonNode] = {
+  private def makeJson(path:String, params: Map[String, Any], requireFile: Boolean): Option[JsonNode] = {
     val jsonFile = pathWithExtension(path, "json", params)
 
     if (jsonFile.isDefined) {
@@ -129,14 +129,14 @@ object Stub {
         FileUtils.readFileToString(new File(jsonFile.get.toURI), "UTF-8"))
       json match {
         case node: ObjectNode =>
-          params.foreach { case (k, v) => node.put(k, v)}
+          params.foreach { case (k, v) => node.putPOJO(k, v)}
         case _ =>
       }
       Some(json)
 
     } else if (!requireFile && params.nonEmpty) {
       val node = new ObjectMapper().createObjectNode()
-      params.foreach{ case (k, v) => node.put(k, v) }
+      params.foreach{ case (k, v) => node.putPOJO(k, v) }
       Some(node)
 
     } else
@@ -170,10 +170,10 @@ object Stub {
 
   private[play2stub] def pathWithExtension(
     path: String, extension: String,
-    params: Map[String, String] = Map.empty, isData: Boolean = true): Option[URL] = {
+    params: Map[String, Any] = Map.empty, isData: Boolean = true): Option[URL] = {
 
     val filledPath = params.foldLeft(path){ (filled, param) =>
-      filled.replace(":" + param._1, param._2)
+      filled.replace(":" + param._1, param._2.toString)
     }
 
     val pathWithExt =
