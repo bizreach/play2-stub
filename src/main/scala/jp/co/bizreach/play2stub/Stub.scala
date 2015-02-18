@@ -28,8 +28,8 @@ object Stub {
   def route(request: RequestHeader): Option[StubRoute] =
     holder.routes
       .find(conf =>
-        conf.route.verb.value == request.method &&
-          conf.route.path(request.path).isDefined)
+        ((conf.route.verb.value == request.method) || (conf.route.verb.value == "GET" && request.method == "HEAD"))
+          && conf.route.path(request.path).isDefined)
       .map { conf =>
         conf.route.path(request.path).map { groups =>
           StubRoute(
