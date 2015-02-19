@@ -200,8 +200,13 @@ class ProxyProcessor
       .withQueryString(request.queryString.mapValues(_.headOption.getOrElse("")).toSeq: _*)
       // TODO accept other formats for file upload and others
       .withBody(request.body.asJson.getOrElse(Json.obj()))
-      .withMethod(request.method)
+      .withMethod(resolveMethod(request))
 
+  /**
+   * Resolve a HTTP method
+   */
+  protected def resolveMethod(request: Request[AnyContent]): String =
+    if (request.method == "HEAD") "GET" else request.method
 
   /**
    * Convert to JSON
