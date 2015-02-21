@@ -1,7 +1,9 @@
 Proxy and Stub for Play2
 ================
 
-`play2-stub` is a play framework plugin for routing requests to another server or return test data
+[日本語概要はこちら](https://speakerdeck.com/scova0731/play2stub-saratutogai-yao)
+
+`play2-stub` is a play framework plugin for routing requests to another server or return dummy data
 
 `routes`
 
@@ -27,10 +29,9 @@ Currently, `play2-stub` only supports Handlebars templates and depends on [play2
 
 Motivation
 =====
-Sometimes engineers collaborate with front-end engineers or UX designers in one play application. While engineers are implementing eagerly, they want server responses to test their artifacts. Today since clients become richer and richer, they really needs clear responses for both html and ajax response. 
- 
-UX/UI designers/engineers also want data variation as we engineers do, to test client-side validation behaviors, for layout adjustment and so on. 
+1. Sometimes engineers collaborate with front-end engineers or UX designers. While engineers are implementing eagerly, they want server responses to test their artifacts. Today since clients become richer and richer, they really needs clear responses for both html or ajax response. 
 
+2. In micro service architecture, a server tends to access a lot of servers. Sometimes, it simply redirects and return the response and change a little and then return back to clients. We want minimize redunduncy to do such thngs.
 
 Features
 =====
