@@ -9,6 +9,7 @@ import play.api.Logger
 import play.api.http.{ContentTypeOf, Writeable, MimeTypes, HeaderNames}
 import play.api.libs.Files.TemporaryFile
 import play.api.libs.json.Json
+import play.api.libs.{MimeTypes => LibMimeTypes}
 import play.api.libs.ws.{WSRequestHolder, WSCookie, WSResponse, WS}
 import play.api.mvc._
 
@@ -150,13 +151,13 @@ class ProxyProcessor
 
 
   /**
-   * If it's binary, get as bytes or get as text
+   * If it's text, get as text or get as binary
    */
   protected def writeBody(response: WSResponse) = {
-    if (response.header(HeaderNames.CONTENT_TYPE).exists(ct => ct == MimeTypes.BINARY))
-      Status(response.status)(response.underlying[NettyResponse].getResponseBodyAsBytes)
-    else
+    if (response.header(HeaderNames.CONTENT_TYPE).exists(LibMimeTypes.isText))
       Status(response.status)(response.body)
+    else
+      Status(response.status)(response.underlying[NettyResponse].getResponseBodyAsBytes)
   }
 
 
