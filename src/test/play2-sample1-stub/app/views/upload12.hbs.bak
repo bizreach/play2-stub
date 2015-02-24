@@ -1,0 +1,17 @@
+{{# partial "content" }}
+<div class="row">
+  <h1>File Upload</h1>
+  <h3 class="subheader">Upload file !</h3>
+  <hr>
+  <div class="small-12 columns">
+
+    Uploaded !
+
+  </div>
+  <hr>
+  <a href="/" class="button">Back</a>
+</div>
+
+{{/partial}}
+
+{{> main}}

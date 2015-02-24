@@ -1,11 +1,15 @@
 package jp.co.bizreach.play2stub
 
+import java.io.ByteArrayOutputStream
+
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.ning.http.client.providers.netty.NettyResponse
 import play.api.Play.current
 import play.api.Logger
-import play.api.http.{MimeTypes, HeaderNames}
+import play.api.http.{ContentTypeOf, Writeable, MimeTypes, HeaderNames}
+import play.api.libs.Files.TemporaryFile
 import play.api.libs.json.Json
-import play.api.libs.ws.{WSCookie, WSResponse, WS}
+import play.api.libs.ws.{WSRequestHolder, WSCookie, WSResponse, WS}
 import play.api.mvc._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -140,9 +144,20 @@ class ProxyProcessor
   /**
    * Return all body and headers as is
    */
-  protected def resultAsIs(response:WSResponse) = Status(response.status)(response.body)
+  protected def resultAsIs(response:WSResponse) = writeBody(response)
     .withHeaders(deNormalizedHeaders(response.allHeaders - HeaderNames.SET_COOKIE):_*)
     .withCookies(convertCookies(response.cookies):_*)
+
+
+  /**
+   * If it's binary, get as bytes or get as text
+   */
+  protected def writeBody(response: WSResponse) = {
+    if (response.header(HeaderNames.CONTENT_TYPE).exists(ct => ct == MimeTypes.BINARY))
+      Status(response.status)(response.underlying[NettyResponse].getResponseBodyAsBytes)
+    else
+      Status(response.status)(response.body)
+  }
 
 
   /**
@@ -190,23 +205,63 @@ class ProxyProcessor
       resultAsIs(response)
     }
 
+
   /**
    * Build web client using WS 
    */
-  protected def buildWS(url: String)(implicit request: Request[AnyContent]) =
-    WS.url(url)
+  protected def buildWS(url: String)(implicit request: Request[AnyContent]): WSRequestHolder =
+    withBody(url)
       .withFollowRedirects(follow = false)
       .withHeaders(request.headers.toSimpleMap.toSeq: _*)
       .withQueryString(request.queryString.mapValues(_.headOption.getOrElse("")).toSeq: _*)
-      // TODO accept other formats for file upload and others
-      .withBody(request.body.asJson.getOrElse(Json.obj()))
       .withMethod(resolveMethod(request))
+
+
+  /**
+   * JSON or Multi-part body
+   */
+  protected def withBody(url: String)(implicit request: Request[AnyContent]): WSRequestHolder =
+    request.body.asMultipartFormData match {
+      case Some(mp) => withMultiPart(url, mp)
+      case None => WS.url(url).withBody(request.body.asJson.getOrElse(Json.obj()))
+    }
+
+
+  /**
+   * Convert multi-part body via AsyncHttpClient
+   *  See https://github.com/playframework/playframework/issues/902 also.
+   */
+  protected def withMultiPart(url: String, multiPart: MultipartFormData[TemporaryFile])(implicit request: Request[AnyContent]):WSRequestHolder = {
+    import com.ning.http.client.FluentCaseInsensitiveStringsMap
+    import com.ning.http.multipart._
+
+    // TODO Set correct value delimiter. Currently, semi-colon is set
+    val dataParts = multiPart.asFormUrlEncoded.map { case (key, values) => new StringPart(key, values.mkString(";"))}
+    val fileParts = multiPart.files.map(f => new FilePart(
+      f.key,
+      f.filename,
+      f.ref.file,
+      f.contentType.getOrElse(FilePart.DEFAULT_CONTENT_TYPE),
+      null
+    ))
+
+    val mpre = new MultipartRequestEntity((dataParts ++ fileParts).toArray, new FluentCaseInsensitiveStringsMap)
+    val baos = new ByteArrayOutputStream
+    mpre.writeRequest(baos)
+    val bytes = baos.toByteArray
+    val contentType = mpre.getContentType
+
+    WS.url(url)
+      .withBody(bytes)(Writeable.wBytes, ContentTypeOf(Some(contentType)))
+  }
+
 
   /**
    * Resolve a HTTP method
    */
   protected def resolveMethod(request: Request[AnyContent]): String =
     if (request.method == "HEAD") "GET" else request.method
+
 
   /**
    * Convert to JSON
