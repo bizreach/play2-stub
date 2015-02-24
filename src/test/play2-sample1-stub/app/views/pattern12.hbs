@@ -1,0 +1,25 @@
+{{# partial "content" }}
+<div class="row">
+  <h1>File Upload</h1>
+  <h3 class="subheader">Upload file !</h3>
+  <hr>
+  <div class="small-12 columns">
+    <p>
+      <code>Pattern 12</code> uploads a file to the server
+    </p>
+
+    <form action="/upload12" method="post" enctype="multipart/form-data" >
+
+      <input type="file" name="input_file" > <br/><br/>
+      <input type="submit" value="送信" > <br/><br/>
+
+    </form>
+
+  </div>
+  <hr>
+  <a href="/" class="button">Back</a>
+</div>
+
+{{/partial}}
+
+{{> main}}

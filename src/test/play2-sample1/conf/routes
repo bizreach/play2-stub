@@ -7,6 +7,7 @@ GET     /                           controllers.Application.indexHbs
 
 GET     /original                   controllers.Application.index
 GET     /simple                     controllers.Application.simple
+POST    /upload                     controllers.Application.upload
 
 
 # Map static resources from the /public folder to the /assets URL path

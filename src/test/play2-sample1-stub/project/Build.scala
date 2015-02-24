@@ -15,7 +15,7 @@ object ApplicationBuild extends Build {
       libraryDependencies ++= Seq(
         // WS is needed for proxying requests
         ws,
-        "jp.co.bizreach" %% "play2-stub" % "0.1-SNAPSHOT"
+        "jp.co.bizreach" %% "play2-stub" % "0.2-SNAPSHOT"
       )
     )
 }
