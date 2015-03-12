@@ -16,8 +16,8 @@ class ProxyProcessorTest extends FunSpec with Matchers {
         "Content-Type" -> Seq("application/json"),
         "Set-Cookie" -> Seq("cookie", "donut"))
 
-      val result = processor.deNormalizedHeaders(headers)
-      println(result)
+//      val result = processor.deNormalizedHeaders(headers)
+//      println(result)
 
 
     }

@@ -129,7 +129,17 @@ object Stub {
         FileUtils.readFileToString(new File(jsonFile.get.toURI), "UTF-8"))
       json match {
         case node: ObjectNode =>
-          params.foreach { case (k, v) => node.putPOJO(k, v)}
+          params.foreach {
+            case (k, v:Short) => node.put(k, v)
+            case (k, v:Int) => node.put(k, v)
+            case (k, v:Long) => node.put(k, v)
+            case (k, v:java.math.BigDecimal) => node.put(k, v)
+            case (k, v:BigDecimal) => node.put(k, v.underlying())
+            case (k, v:Float) => node.put(k, v)
+            case (k, v:Double) => node.put(k, v)
+            case (k, v:String) => node.put(k, v)
+            case (k, v:Boolean) => node.put(k, v)
+            case (k, v) => node.putPOJO(k, v)}
         case _ =>
       }
       Some(json)

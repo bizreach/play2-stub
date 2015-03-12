@@ -3,11 +3,11 @@ name := "play2-stub"
 
 organization := "jp.co.bizreach"
 
-version := "0.2-SNAPSHOT"
+version := "0.2.2"
 
-scalaVersion := "2.11.2"
+scalaVersion := "2.11.6"
 
-crossScalaVersions := Seq("2.10.3", "2.11.2")
+crossScalaVersions := Seq("2.10.4", "2.11.6")
 
 resolvers ++= Seq(
 //  "Local Repository" at "file://" + Path.userHome.absolutePath + "/.ivy2/local",
@@ -43,7 +43,7 @@ publishArtifact in Test := false
 pomIncludeRepository := { _ => false }
 
 pomExtra := (
-  <url>https://github.com/bizreach/play2-handlebars</url>
+  <url>https://github.com/bizreach/play2-stub</url>
     <licenses>
       <license>
         <name>The Apache Software License, Version 2.0</name>
@@ -51,8 +51,8 @@ pomExtra := (
       </license>
     </licenses>
     <scm>
-      <url>https://github.com/bizreach/play2-handlebars</url>
-      <connection>scm:git:https://github.com/bizreach/play2-handlebars.git</connection>
+      <url>https://github.com/bizreach/play2-stub</url>
+      <connection>scm:git:https://github.com/bizreach/play2-stub.git</connection>
     </scm>
     <developers>
       <developer>
