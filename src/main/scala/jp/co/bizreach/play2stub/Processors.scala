@@ -1,19 +1,24 @@
 package jp.co.bizreach.play2stub
 
-import java.io.ByteArrayOutputStream
+import java.io.{File, ByteArrayOutputStream}
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.ning.http.client.providers.netty.NettyResponse
+import com.ning.http.client.FluentCaseInsensitiveStringsMap
+import com.ning.http.client.multipart.{Part, PartBase, StringPart, FilePart}
+import com.ning.http.client.providers.jdk.MultipartRequestEntity
+import com.ning.http.client.providers.netty.response.NettyResponse
 import play.api.Play.current
 import play.api.Logger
 import play.api.http.{ContentTypeOf, Writeable, MimeTypes, HeaderNames}
 import play.api.libs.Files.TemporaryFile
 import play.api.libs.json.Json
-import play.api.libs.ws.{WSRequestHolder, WSCookie, WSResponse, WS}
+import play.api.libs.ws._
 import play.api.mvc._
 
+import scala.collection.immutable.Iterable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.language.implicitConversions
 
 
 /**
@@ -209,7 +214,7 @@ class ProxyProcessor
   /**
    * Build web client using WS 
    */
-  protected def buildWS(url: String)(implicit request: Request[AnyContent]): WSRequestHolder =
+  protected def buildWS(url: String)(implicit request: Request[AnyContent]): WSRequest =
     withBody(url)
       .withFollowRedirects(follow = false)
       .withHeaders(request.headers.toSimpleMap.toSeq: _*)
@@ -220,40 +225,47 @@ class ProxyProcessor
   /**
    * JSON or Multi-part body
    */
-  protected def withBody(url: String)(implicit request: Request[AnyContent]): WSRequestHolder =
+  protected def withBody(url: String)(implicit request: Request[AnyContent]): WSRequest = {
+    import MultipartFormDataWriteable._
+
     request.body.asMultipartFormData match {
-      case Some(mp) => withMultiPart(url, mp)
-      case None => WS.url(url).withBody(request.body.asJson.getOrElse(Json.obj()))
+      case Some(mp) =>
+        WS.url(url).withBody(mp)
+      case None =>
+        WS.url(url).withBody(request.body.asJson.getOrElse(Json.obj()))
     }
-
-
-  /**
-   * Convert multi-part body via AsyncHttpClient
-   *  See https://github.com/playframework/playframework/issues/902 also.
-   */
-  protected def withMultiPart(url: String, multiPart: MultipartFormData[TemporaryFile])(implicit request: Request[AnyContent]):WSRequestHolder = {
-    import com.ning.http.client.FluentCaseInsensitiveStringsMap
-    import com.ning.http.multipart._
-
-    // TODO Set correct value delimiter. Currently, semi-colon is set
-    val dataParts = multiPart.asFormUrlEncoded.map { case (key, values) => new StringPart(key, values.mkString(";"))}
-    val fileParts = multiPart.files.map(f => new FilePart(
-      f.key,
-      f.filename,
-      f.ref.file,
-      f.contentType.getOrElse(FilePart.DEFAULT_CONTENT_TYPE),
-      null
-    ))
-
-    val mpre = new MultipartRequestEntity((dataParts ++ fileParts).toArray, new FluentCaseInsensitiveStringsMap)
-    val baos = new ByteArrayOutputStream
-    mpre.writeRequest(baos)
-    val bytes = baos.toByteArray
-    val contentType = mpre.getContentType
-
-    WS.url(url)
-      .withBody(bytes)(Writeable.wBytes, ContentTypeOf(Some(contentType)))
   }
+
+
+//  /**
+//   * Convert multi-part body via AsyncHttpClient
+//   *  See https://github.com/playframework/playframework/issues/902 also.
+//   */
+//  protected def withMultiPart(url: String, multiPart: MultipartFormData[TemporaryFile])(implicit request: Request[AnyContent]):WSRequest = {
+//    import com.ning.http.client.FluentCaseInsensitiveStringsMap
+//    import com.ning.http.client.multipart._
+//
+//    // TODO Set correct value delimiter. Currently, semi-colon is set
+//    val dataParts = multiPart.asFormUrlEncoded.map { case (key, values) => new StringPart(key, values.mkString(";"))}
+//    val fileParts = multiPart.files.map(f => new FilePart(
+//      f.key,
+//      f.filename,
+//      f.ref.file,
+//      f.contentType.getOrElse(FilePart.DEFAULT_CONTENT_TYPE),
+//      null
+//    ))
+//
+//    val mpre = new MultipartRequestEntity((dataParts ++ fileParts).toArray, new FluentCaseInsensitiveStringsMap)
+//    val baos = new ByteArrayOutputStream
+//    mpre.writeRequest(baos)
+//    val bytes = baos.toByteArray
+//
+//    // TODO re-visit ContentTypeOf decision
+//    //val contentType = mpre.getContentType
+//
+//    WS.url(url)
+//      .withBody(bytes)(Writeable.wBytes)//, ContentTypeOf(Some(contentType)))
+//  }
 
 
   /**
@@ -274,4 +286,59 @@ class ProxyProcessor
         response.underlying[com.ning.http.client.Response].getResponseBodyAsBytes)
     else
       new ObjectMapper().createObjectNode()
+}
+
+/**
+ * Convert multi-part body via AsyncHttpClient
+ *  See https://github.com/playframework/playframework/issues/902
+ *   and https://gist.github.com/cdmckay/4b269e9017a30111556a
+ */
+object MultipartFormDataWriteable {
+
+  implicit def contentTypeOf_MultipartFormData[A](implicit codec: Codec): ContentTypeOf[MultipartFormData[A]] = {
+    ContentTypeOf[MultipartFormData[A]](Some("multipart/form-data; boundary=__X_PROCESS_STREET_BOUNDARY__"))
+  }
+
+  implicit def writeableOf_MultipartFormData(implicit contentType: ContentTypeOf[MultipartFormData[File]]): Writeable[MultipartFormData[File]] = {
+    Writeable[MultipartFormData[File]]((formData: MultipartFormData[File]) => {
+
+      writeableInner[File, MultipartFormData[File]](contentType, formData) {
+        filePart => filePart.ref
+      }
+
+
+    })(contentType, global)
+  }
+
+  implicit def writeableOf_MultipartFormDataForTemp(implicit contentType: ContentTypeOf[MultipartFormData[TemporaryFile]]): Writeable[MultipartFormData[TemporaryFile]] = {
+    Writeable[MultipartFormData[TemporaryFile]]((formData: MultipartFormData[TemporaryFile]) => {
+
+      writeableInner[TemporaryFile, MultipartFormData[TemporaryFile]](contentType, formData) {
+        filePart => filePart.ref.file
+      }
+
+    })(contentType, global)
+  }
+
+  def writeableInner[A, B <: MultipartFormData[A]](contentType: ContentTypeOf[B], formData: B)
+                                                  (fileRef: MultipartFormData.FilePart[A] => File): Array[Byte] = {
+    val stringParts = formData.dataParts.flatMap {
+      case (key, values) => values map (new StringPart(key, _))
+    }.toList
+
+    val fileParts: Seq[FilePart] = formData.files map { filePart =>
+      new FilePart(filePart.key, fileRef(filePart), filePart.contentType getOrElse "application/octet-stream", null)
+    }
+
+    val parts: List[Part] = stringParts ++ fileParts
+
+    val headers = new FluentCaseInsensitiveStringsMap().add(play.api.http.HeaderNames.CONTENT_TYPE, contentType.mimeType.get)
+
+    import scala.collection.JavaConverters._
+    val entity = new MultipartRequestEntity(parts.asJava, headers)
+    val outputStream = new ByteArrayOutputStream
+    entity.writeRequest(outputStream)
+
+    outputStream.toByteArray
+  }
 }

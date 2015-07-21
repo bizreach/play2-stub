@@ -10,7 +10,7 @@ import org.apache.commons.io.{FilenameUtils, FileUtils}
 import play.api.Play._
 import play.api.libs.ws.WSResponse
 import play.api.mvc.{Result, Request, AnyContent, RequestHeader}
-import play.core.Router.RouteParams
+import play.core.routing.RouteParams
 import play.utils.UriEncoding
 
 import scala.concurrent.Future

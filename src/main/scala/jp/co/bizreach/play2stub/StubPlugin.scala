@@ -2,18 +2,37 @@ package jp.co.bizreach.play2stub
 
 import java.net.URL
 
+import javax.inject.{Provider, Inject}
 import jp.co.bizreach.play2stub.RoutesCompiler.Route
 import org.apache.commons.io.FileUtils
 import play.api.Play._
 import play.api._
+import play.api.inject.{ApplicationLifecycle, Binding, Module}
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 
+class StubModule() extends Module {
+  def bindings(environment: Environment, configuration: Configuration): Seq[Binding[StubPlugin]] =
+    Seq(
+      bind[StubPlugin].toProvider[StubProvider].eagerly()
+    )
+}
+
+
+@javax.inject.Singleton
+class StubProvider @Inject() (app: Application, lifecycle: ApplicationLifecycle) extends Provider[StubPlugin] {
+
+  private lazy val logger = Logger(this.getClass)
+
+  lazy val get: StubPlugin = new StubPlugin(app, lifecycle)
+
+}
+
 /**
  *
  */
-class StubPlugin(app: Application) extends Plugin {
+class StubPlugin @Inject() (app: Application, lifecycle: ApplicationLifecycle) {
 
   private val logger = Logger("jp.co.bizreach.play2stub.StubPlugin")
   private val basePath = "play2stub"
@@ -88,10 +107,12 @@ class StubPlugin(app: Application) extends Plugin {
   }
 
 
+  onStart()
+
   /**
    *  Instantiate stub configuration holder on starting up
    */
-  override def onStart(): Unit = {
+  def onStart(): Unit = {
     logger.debug("Initializing Play2Stub ...")
     holder
     logger.debug("Play2Stub is initialized !")

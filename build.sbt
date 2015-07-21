@@ -3,11 +3,11 @@ name := "play2-stub"
 
 organization := "jp.co.bizreach"
 
-version := "0.2-SNAPSHOT"
+version := "0.3.0"
 
-scalaVersion := "2.11.2"
+scalaVersion := "2.11.7"
 
-crossScalaVersions := Seq("2.10.3", "2.11.2")
+crossScalaVersions := Seq("2.10.5", "2.11.7")
 
 resolvers ++= Seq(
 //  "Local Repository" at "file://" + Path.userHome.absolutePath + "/.ivy2/local",
@@ -16,8 +16,8 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.typesafe.play"  %% "play"                 % "2.3.4"    % "provided",
-  "com.typesafe.play"  %% "play-ws"              % "2.3.4"    % "provided",
+  "com.typesafe.play"  %% "play"                 % "2.4.2"    % "provided",
+  "com.typesafe.play"  %% "play-ws"              % "2.4.2"    % "provided",
   "commons-io"          % "commons-io"           % "2.4",
   "jp.co.bizreach"     %% "play2-handlebars"     % "0.2.0",
   "org.scalatest"      %% "scalatest"            % "2.2.1"    % "test",
