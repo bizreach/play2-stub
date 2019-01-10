@@ -22,7 +22,7 @@ libraryDependencies ++= Seq(
   "jp.co.bizreach"     %% "play2-handlebars"     % "0.2.0",
   "org.scalatest"      %% "scalatest"            % "2.2.1"    % "test",
   "org.mockito"         % "mockito-all"          % "1.9.5"    % "test",
-  "com.typesafe.play"  %% "play-test"            % "2.3.3"    % "test"
+  "com.typesafe.play"  %% "play-test"            % "2.4.2"    % "test"
 )
 
 publishMavenStyle := true
