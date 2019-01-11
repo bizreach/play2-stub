@@ -16,7 +16,7 @@ class ApplicationSpec extends Specification {
   "Application" should {
 
     "send 404 on a bad request" in new WithApplication{
-      route(FakeRequest(GET, "/boum")) must beNone
+      status(route(FakeRequest(GET, "/boum")).get) must equalTo(404)
     }
 
     "render the index page" in new WithApplication{
