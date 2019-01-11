@@ -1,17 +1,18 @@
 import sbt._
 import Keys._
-import play.Play.autoImport._
-import play.PlayImport.PlayKeys._
+import play.sbt.Play.autoImport._
+import play.sbt.PlayImport.PlayKeys._
+import play.sbt.PlayScala
 
 object ApplicationBuild extends Build {
 
   val main = Project("root", file("."))
-    .enablePlugins(play.PlayScala)
+    .enablePlugins(PlayScala)
     .settings(
-      scalaVersion := "2.11.2",
+      scalaVersion := "2.11.12",
       playDefaultPort := 9001,
       libraryDependencies ++= Seq(
-        "jp.co.bizreach" %% "play2-handlebars" % "0.2.0"
+        "jp.co.bizreach" %% "play2-handlebars" % "0.3.1"
       )
     )
 }
